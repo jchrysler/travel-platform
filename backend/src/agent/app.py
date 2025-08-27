@@ -4,7 +4,7 @@ from fastapi import FastAPI, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.runnables import RunnableConfig
-from langgraph.graph.graph import CompiledGraph
+# CompiledGraph import removed - not needed
 from agent.graph import graph
 
 # Define the FastAPI app
