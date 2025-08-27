@@ -189,11 +189,30 @@ def post_process_article(article_text: str) -> str:
         # Also handle lowercase versions
         result = result.replace(pattern.lower(), replacement.lower())
     
-    # Remove double spaces
-    result = " ".join(result.split())
+    # Ensure proper spacing around headers
+    lines = result.split('\n')
+    processed_lines = []
+    
+    for i, line in enumerate(lines):
+        # Add spacing before headers (except the first one)
+        if line.startswith('#') and i > 0 and processed_lines and processed_lines[-1].strip():
+            processed_lines.append('')  # Add blank line before header
+        processed_lines.append(line)
+        # Add spacing after headers
+        if line.startswith('#'):
+            if i < len(lines) - 1 and lines[i + 1].strip() and not lines[i + 1].startswith('#'):
+                processed_lines.append('')  # Add blank line after header
+    
+    result = '\n'.join(processed_lines)
     
     # Fix multiple line breaks (more than 2 consecutive)
     while "\n\n\n" in result:
         result = result.replace("\n\n\n", "\n\n")
+    
+    # Ensure there's a blank line after the title
+    if result.startswith('#'):
+        lines = result.split('\n', 2)
+        if len(lines) > 1 and lines[1].strip():
+            result = lines[0] + '\n\n' + '\n'.join(lines[1:])
     
     return result

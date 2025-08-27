@@ -27,25 +27,38 @@ interface ArticleViewerProps {
 // Enhanced markdown components for article display
 const articleComponents = {
   h1: ({ children, ...props }: any) => (
-    <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 dark:text-gray-100 leading-tight" {...props}>
+    <h1 className="text-3xl md:text-4xl font-bold mb-8 mt-2 text-gray-900 dark:text-gray-100 leading-tight block" {...props}>
       {children}
     </h1>
   ),
   h2: ({ children, ...props }: any) => (
-    <h2 className="text-2xl md:text-3xl font-semibold mt-8 mb-4 text-gray-800 dark:text-gray-200" {...props}>
+    <h2 className="text-2xl md:text-3xl font-semibold mt-10 mb-5 text-gray-800 dark:text-gray-200 block" {...props}>
       {children}
     </h2>
   ),
   h3: ({ children, ...props }: any) => (
-    <h3 className="text-xl md:text-2xl font-medium mt-6 mb-3 text-gray-700 dark:text-gray-300" {...props}>
+    <h3 className="text-xl md:text-2xl font-medium mt-8 mb-4 text-gray-700 dark:text-gray-300 block" {...props}>
       {children}
     </h3>
   ),
-  p: ({ children, ...props }: any) => (
-    <p className="mb-4 text-lg leading-relaxed text-gray-700 dark:text-gray-300" {...props}>
-      {children}
-    </p>
-  ),
+  p: ({ children, ...props }: any) => {
+    // Check if this paragraph contains what looks like a heading (starts with #)
+    const text = children?.toString() || '';
+    if (text.startsWith('##')) {
+      // This is likely an unparsed heading, render it as such
+      const headingText = text.replace(/^#+\s*/, '');
+      return (
+        <h2 className="text-2xl md:text-3xl font-semibold mt-10 mb-5 text-gray-800 dark:text-gray-200 block">
+          {headingText}
+        </h2>
+      );
+    }
+    return (
+      <p className="mb-5 text-lg leading-relaxed text-gray-700 dark:text-gray-300 block" {...props}>
+        {children}
+      </p>
+    );
+  },
   a: ({ href, children, ...props }: any) => (
     <a
       href={href}
@@ -245,7 +258,11 @@ export const ArticleViewer: React.FC<ArticleViewerProps> = ({
       {/* Article Content */}
       <Card className="p-8 md:p-12 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
         <article className="prose prose-lg dark:prose-invert max-w-none">
-          <ReactMarkdown components={articleComponents}>
+          <ReactMarkdown 
+            components={articleComponents}
+            skipHtml={false}
+            unwrapDisallowed={false}
+          >
             {article}
           </ReactMarkdown>
         </article>
