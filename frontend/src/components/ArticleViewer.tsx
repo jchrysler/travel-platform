@@ -13,7 +13,6 @@ import {
   Sparkles
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { cn } from '@/lib/utils';
 
 interface ArticleViewerProps {
   article: string;
@@ -115,8 +114,8 @@ export const ArticleViewer: React.FC<ArticleViewerProps> = ({
   tone,
   effort,
   model,
-  wordCount = 1000,
-  linkCount = 6,
+  wordCount: _wordCount = 1000,
+  linkCount: _linkCount = 6,
   onReset
 }) => {
   const [copied, setCopied] = useState(false);
