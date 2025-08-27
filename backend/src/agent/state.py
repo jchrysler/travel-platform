@@ -27,6 +27,7 @@ class OverallState(TypedDict):
     use_inline_links: bool
     use_apa_style: bool
     custom_persona: str
+    target_keywords: str
 
 
 class ReflectionState(TypedDict):

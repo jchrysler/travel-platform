@@ -24,6 +24,34 @@ def get_persona_instructions(custom_persona: str) -> str:
     return ""
 
 
+def get_keyword_instructions(keywords: str) -> str:
+    """Format keyword optimization instructions."""
+    if not keywords or not keywords.strip():
+        return ""
+    
+    keyword_list = [k.strip() for k in keywords.split(',') if k.strip()]
+    if not keyword_list:
+        return ""
+    
+    primary = keyword_list[0]
+    secondary = keyword_list[1:] if len(keyword_list) > 1 else []
+    
+    instructions = [f"PRIMARY KEYWORD TO OPTIMIZE FOR: {primary}"]
+    if secondary:
+        instructions.append(f"SECONDARY KEYWORDS: {', '.join(secondary)}")
+    
+    instructions.extend([
+        "\nKEYWORD OPTIMIZATION REQUIREMENTS:",
+        f"- The title MUST include '{primary}' naturally",
+        "- Use the primary keyword in the first paragraph",
+        "- Include keywords naturally throughout (1-2% density)",
+        "- Use semantic variations and related terms",
+        "- Ensure keywords appear in at least 2 subheadings\n"
+    ])
+    
+    return "\n".join(instructions)
+
+
 def get_citation_instructions(use_inline_links: bool, use_apa_style: bool, link_count: int) -> str:
     """Generate citation instructions based on selected link styles."""
     instructions = []
@@ -48,6 +76,8 @@ def get_citation_instructions(use_inline_links: bool, use_apa_style: bool, link_
 
 # Improved query generation
 query_writer_instructions = """Generate targeted search queries to research "{research_topic}" for a {word_count}-word article.
+
+{keyword_instructions}
 
 Create {number_queries} specific queries that will find:
 1. Current data and statistics (include year 2024/2025)
@@ -106,6 +136,8 @@ Research gathered:
 
 # Completely redesigned article generation prompt
 answer_instructions = """Write a {word_count}-word article about "{research_topic}".
+
+{keyword_instructions}
 
 {persona_instructions}CRITICAL WRITING RULES:
 1. Write naturally - vary sentence length, use contractions, be conversational

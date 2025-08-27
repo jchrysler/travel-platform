@@ -20,6 +20,7 @@ from agent.prompts import (
     get_current_date,
     get_tone_description,
     get_persona_instructions,
+    get_keyword_instructions,
     get_citation_instructions,
     query_writer_instructions,
     web_searcher_instructions,
@@ -75,11 +76,15 @@ def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerati
 
     # Format the prompt
     current_date = get_current_date()
+    keywords = state.get("target_keywords", "")
+    keyword_instructions = get_keyword_instructions(keywords) if keywords else "No specific keywords to optimize for."
+    
     formatted_prompt = query_writer_instructions.format(
         current_date=current_date,
         research_topic=get_research_topic(state["messages"]),
         number_queries=state["initial_search_query_count"],
         word_count=state.get("word_count", 1000),
+        keyword_instructions=keyword_instructions,
     )
     # Generate the search queries
     result = structured_llm.invoke(formatted_prompt)
@@ -246,12 +251,14 @@ def finalize_answer(state: OverallState, config: RunnableConfig):
     use_inline_links = state.get("use_inline_links") if state.get("use_inline_links") is not None else configurable.use_inline_links
     use_apa_style = state.get("use_apa_style") if state.get("use_apa_style") is not None else configurable.use_apa_style
     custom_persona = state.get("custom_persona") or configurable.custom_persona
+    target_keywords = state.get("target_keywords", "")
 
     # Format the prompt
     current_date = get_current_date()
     tone = state.get("article_tone", "professional")
     tone_description = get_tone_description(tone)
     persona_instructions = get_persona_instructions(custom_persona)
+    keyword_instructions = get_keyword_instructions(target_keywords)
     citation_instructions = get_citation_instructions(use_inline_links, use_apa_style, link_count)
     
     formatted_prompt = answer_instructions.format(
@@ -259,6 +266,7 @@ def finalize_answer(state: OverallState, config: RunnableConfig):
         research_topic=get_research_topic(state["messages"]),
         tone_voice=tone_description,
         persona_instructions=persona_instructions,
+        keyword_instructions=keyword_instructions,
         word_count=word_count,
         citation_instructions=citation_instructions,
         summaries="\n---\n\n".join(state.get("web_research_result", [])),
