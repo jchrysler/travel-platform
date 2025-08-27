@@ -12,6 +12,10 @@ export default function App() {
   const [effort, setEffort] = useState("medium");
   const [model, setModel] = useState("gemini-2.5-flash");
   const [tone, setTone] = useState("professional");
+  const [wordCount, setWordCount] = useState(1000);
+  const [linkCount, setLinkCount] = useState(5);
+  const [useInlineLinks, setUseInlineLinks] = useState(true);
+  const [useApaStyle, setUseApaStyle] = useState(false);
   const [generatedArticle, setGeneratedArticle] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -62,10 +66,10 @@ export default function App() {
           max_research_loops,
           reasoning_model: model,
           article_tone: tone,
-          word_count: 1000,
-          link_count: 6,
-          use_inline_links: true,
-          use_apa_style: false,
+          word_count: wordCount,
+          link_count: linkCount,
+          use_inline_links: useInlineLinks,
+          use_apa_style: useApaStyle,
           custom_persona: "",
         }),
       });
@@ -185,6 +189,74 @@ export default function App() {
                     </Select>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Word Count
+                      </label>
+                      <Select value={wordCount.toString()} onValueChange={(v) => setWordCount(parseInt(v))} disabled={isLoading}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="750">750 words</SelectItem>
+                          <SelectItem value="1000">1000 words</SelectItem>
+                          <SelectItem value="1250">1250 words</SelectItem>
+                          <SelectItem value="1500">1500 words</SelectItem>
+                          <SelectItem value="2000">2000 words</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Number of Links
+                      </label>
+                      <Select value={linkCount.toString()} onValueChange={(v) => setLinkCount(parseInt(v))} disabled={isLoading}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">No links</SelectItem>
+                          <SelectItem value="3">3 links</SelectItem>
+                          <SelectItem value="5">5 links</SelectItem>
+                          <SelectItem value="8">8 links</SelectItem>
+                          <SelectItem value="10">10 links</SelectItem>
+                          <SelectItem value="12">12 links</SelectItem>
+                          <SelectItem value="15">15 links</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Link Style
+                    </label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={useInlineLinks}
+                          onChange={(e) => setUseInlineLinks(e.target.checked)}
+                          disabled={isLoading}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Inline Links</span>
+                      </label>
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={useApaStyle}
+                          onChange={(e) => setUseApaStyle(e.target.checked)}
+                          disabled={isLoading}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">APA References</span>
+                      </label>
+                    </div>
+                  </div>
+
                   <Button 
                     onClick={handleGenerate}
                     disabled={!prompt.trim() || isLoading}
@@ -229,7 +301,8 @@ export default function App() {
                         <li>• Model: {model}</li>
                         <li>• Tone: {tone}</li>
                         <li>• Effort: {effort}</li>
-                        <li>• Word count: ~1000</li>
+                        <li>• Word count: {wordCount}</li>
+                        <li>• Links: {linkCount} {useInlineLinks && "(inline)"} {useApaStyle && "(+ references)"}</li>
                       </ul>
                     </div>
                   </div>
@@ -243,8 +316,8 @@ export default function App() {
               tone={tone}
               effort={effort}
               model={model}
-              wordCount={1000}
-              linkCount={6}
+              wordCount={wordCount}
+              linkCount={linkCount}
               onReset={handleReset}
             />
           )}

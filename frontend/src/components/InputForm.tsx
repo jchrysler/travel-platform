@@ -258,11 +258,9 @@ export const InputForm: React.FC<InputFormProps> = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border text-popover-foreground cursor-pointer">
-              <SelectItem value="200" className="hover:bg-accent focus:bg-accent cursor-pointer">200</SelectItem>
-              <SelectItem value="500" className="hover:bg-accent focus:bg-accent cursor-pointer">500</SelectItem>
               <SelectItem value="750" className="hover:bg-accent focus:bg-accent cursor-pointer">750</SelectItem>
               <SelectItem value="1000" className="hover:bg-accent focus:bg-accent cursor-pointer">1000</SelectItem>
-              <SelectItem value="1200" className="hover:bg-accent focus:bg-accent cursor-pointer">1200</SelectItem>
+              <SelectItem value="1250" className="hover:bg-accent focus:bg-accent cursor-pointer">1250</SelectItem>
               <SelectItem value="1500" className="hover:bg-accent focus:bg-accent cursor-pointer">1500</SelectItem>
               <SelectItem value="2000" className="hover:bg-accent focus:bg-accent cursor-pointer">2000</SelectItem>
             </SelectContent>
@@ -279,13 +277,14 @@ export const InputForm: React.FC<InputFormProps> = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border text-popover-foreground cursor-pointer">
-              <SelectItem value="0" className="hover:bg-accent focus:bg-accent cursor-pointer">0</SelectItem>
-              <SelectItem value="2" className="hover:bg-accent focus:bg-accent cursor-pointer">2</SelectItem>
-              <SelectItem value="4" className="hover:bg-accent focus:bg-accent cursor-pointer">4</SelectItem>
-              <SelectItem value="6" className="hover:bg-accent focus:bg-accent cursor-pointer">6</SelectItem>
+              <SelectItem value="0" className="hover:bg-accent focus:bg-accent cursor-pointer">None</SelectItem>
+              <SelectItem value="3" className="hover:bg-accent focus:bg-accent cursor-pointer">3</SelectItem>
+              <SelectItem value="5" className="hover:bg-accent focus:bg-accent cursor-pointer">5</SelectItem>
               <SelectItem value="8" className="hover:bg-accent focus:bg-accent cursor-pointer">8</SelectItem>
               <SelectItem value="10" className="hover:bg-accent focus:bg-accent cursor-pointer">10</SelectItem>
+              <SelectItem value="12" className="hover:bg-accent focus:bg-accent cursor-pointer">12</SelectItem>
               <SelectItem value="15" className="hover:bg-accent focus:bg-accent cursor-pointer">15</SelectItem>
+              <SelectItem value="20" className="hover:bg-accent focus:bg-accent cursor-pointer">20</SelectItem>
             </SelectContent>
           </Select>
         </div>
