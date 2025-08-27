@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { ThemeProvider } from "@/lib/theme-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ArticleViewer } from "@/components/ArticleViewer";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 export default function App() {
   const [prompt, setPrompt] = useState("");
   const [effort, setEffort] = useState("medium");
-  const [model, setModel] = useState("gemini-2.0-flash-exp");
+  const [model, setModel] = useState("gemini-2.5-flash");
   const [tone, setTone] = useState("professional");
   const [generatedArticle, setGeneratedArticle] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -239,23 +240,15 @@ export default function App() {
             </div>
           ) : (
             /* Article Display */
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{tone}</Badge>
-                  <Badge variant="outline">{effort} effort</Badge>
-                  <Badge variant="outline">{model}</Badge>
-                </div>
-                <Button onClick={handleReset}>Generate New Article</Button>
-              </div>
-              
-              <Card className="p-8">
-                <div 
-                  className="prose prose-lg max-w-none dark:prose-invert"
-                  dangerouslySetInnerHTML={{ __html: generatedArticle }}
-                />
-              </Card>
-            </div>
+            <ArticleViewer
+              article={generatedArticle}
+              tone={tone}
+              effort={effort}
+              model={model}
+              wordCount={1000}
+              linkCount={6}
+              onReset={handleReset}
+            />
           )}
         </div>
       </div>

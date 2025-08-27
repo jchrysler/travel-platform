@@ -25,6 +25,7 @@ from agent.prompts import (
     web_searcher_instructions,
     reflection_instructions,
     answer_instructions,
+    post_process_article,
 )
 from langchain_google_genai import ChatGoogleGenerativeAI
 from agent.utils import (
@@ -161,9 +162,11 @@ def reflection(state: OverallState, config: RunnableConfig) -> ReflectionState:
 
     # Format the prompt
     current_date = get_current_date()
+    word_count = state.get("word_count") or configurable.word_count
     formatted_prompt = reflection_instructions.format(
         current_date=current_date,
         research_topic=get_research_topic(state["messages"]),
+        word_count=word_count,
         summaries="\n\n---\n\n".join(state.get("web_research_result", [])),
     )
     # init Reasoning Model
@@ -269,18 +272,21 @@ def finalize_answer(state: OverallState, config: RunnableConfig):
         api_key=os.getenv("GEMINI_API_KEY"),
     )
     result = llm.invoke(formatted_prompt)
+    
+    # Post-process the article to remove AI patterns
+    processed_content = post_process_article(result.content)
 
     # Replace the short urls with the original urls and add all used urls to the sources_gathered
     unique_sources = []
     for source in state["sources_gathered"]:
-        if source["short_url"] in result.content:
-            result.content = result.content.replace(
+        if source["short_url"] in processed_content:
+            processed_content = processed_content.replace(
                 source["short_url"], source["value"]
             )
             unique_sources.append(source)
 
     return {
-        "messages": state["messages"] + [AIMessage(content=result.content)],
+        "messages": state["messages"] + [AIMessage(content=processed_content)],
         "sources_gathered": unique_sources,
     }
 

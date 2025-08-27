@@ -34,7 +34,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 }) => {
   const [internalInputValue, setInternalInputValue] = useState("");
   const [effort, setEffort] = useState("low"); // Default to low
-  const [model, setModel] = useState("gemini-2.5-flash-preview-04-17");
+  const [model, setModel] = useState("gemini-2.5-flash");
   const [tone, setTone] = useState("professional");
   
   // Configuration state
@@ -181,15 +181,15 @@ export const InputForm: React.FC<InputFormProps> = ({
             </SelectTrigger>
             <SelectContent className="bg-popover border-border text-popover-foreground cursor-pointer">
               <SelectItem
-                value="gemini-2.0-flash"
+                value="gemini-2.5-flash-lite"
                 className="hover:bg-accent focus:bg-accent cursor-pointer"
               >
                 <div className="flex items-center">
-                  <Zap className="h-4 w-4 mr-2 text-yellow-400" /> 2.0 Flash
+                  <Zap className="h-4 w-4 mr-2 text-yellow-400" /> 2.5 Flash Lite
                 </div>
               </SelectItem>
               <SelectItem
-                value="gemini-2.5-flash-preview-04-17"
+                value="gemini-2.5-flash"
                 className="hover:bg-accent focus:bg-accent cursor-pointer"
               >
                 <div className="flex items-center">
@@ -197,7 +197,7 @@ export const InputForm: React.FC<InputFormProps> = ({
                 </div>
               </SelectItem>
               <SelectItem
-                value="gemini-2.5-pro-preview-05-06"
+                value="gemini-2.5-pro"
                 className="hover:bg-accent focus:bg-accent cursor-pointer"
               >
                 <div className="flex items-center">
