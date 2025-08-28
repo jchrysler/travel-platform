@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.runnables import RunnableConfig
 # CompiledGraph import removed - not needed
 from agent.graph import graph
+from agent.improve_graph import improve_graph
 
 # Define the FastAPI app
 app = FastAPI()
@@ -43,6 +44,25 @@ async def stream_graph(request: dict):
             yield chunk
     except Exception as e:
         yield {"error": str(e)}
+
+# Add content improvement endpoint
+@app.post("/improve")
+async def improve_content(request: dict):
+    try:
+        config = RunnableConfig()
+        result = await improve_graph.ainvoke(request, config=config)
+        
+        # Format the response
+        return {
+            "improved_content": result.get("improved_content", ""),
+            "analysis": {
+                "issues_found": result.get("content_analysis", {}).get("analysis", "").split("\n") if result.get("content_analysis") else [],
+                "improvements_made": result.get("improvements_made", []),
+                "compliance_status": result.get("compliance_check", {}).get("status", "Unknown")
+            }
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 
 def create_frontend_router(build_dir="../frontend/dist"):

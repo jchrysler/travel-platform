@@ -248,3 +248,79 @@ def post_process_article(article_text: str) -> str:
             result = lines[0] + '\n\n' + '\n'.join(lines[1:])
     
     return result
+
+
+# Content Improvement Prompts
+
+content_analysis_prompt = """You are a content compliance and quality analyst. Analyze the following content and identify:
+
+Original Content:
+{original_content}
+
+Issues Reported:
+{issues_to_address}
+
+Target Keywords (if any):
+{target_keywords}
+
+Please analyze and identify:
+1. Unsubstantiated claims that need evidence
+2. Compliance issues or problematic statements
+3. Missing information or gaps in the content
+4. Areas that need stronger evidence or citations
+5. Keyword optimization opportunities
+
+Return a detailed analysis with specific issues that need to be addressed."""
+
+content_improvement_prompt = """You are an expert content improver specializing in compliance and evidence-based writing.
+
+Original Content:
+{original_content}
+
+Content Analysis:
+{content_analysis}
+
+Research Results:
+{research_results}
+
+Target Keywords: {target_keywords}
+Tone: {tone_description}
+Target Word Count: {word_count}
+Target Link Count: {link_count}
+
+Your task:
+1. Rewrite the content to address all identified issues
+2. Add proper citations and evidence for all claims
+3. Ensure compliance-friendly language
+4. Naturally incorporate target keywords (if provided)
+5. Maintain the specified tone
+6. Include {link_count} relevant source links
+7. Target approximately {word_count} words
+
+Format the improved content with:
+- Clear structure and headings
+- Inline citations where claims are made
+- Natural keyword integration
+- Evidence-based statements
+- Compliance-friendly language
+
+{citation_instructions}
+
+Return the fully improved article with all sources properly cited."""
+
+compliance_check_prompt = """You are a compliance officer reviewing content for substantiation and accuracy.
+
+Review this improved content:
+{improved_content}
+
+Original Issues:
+{issues_to_address}
+
+Verify that:
+1. All claims are properly substantiated with evidence
+2. No misleading or exaggerated statements remain
+3. Compliance issues have been resolved
+4. Sources are credible and properly cited
+5. Content meets advertising/compliance standards
+
+Return a compliance assessment indicating whether the content is now compliant and any remaining concerns."""

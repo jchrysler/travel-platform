@@ -52,6 +52,22 @@ class WebSearchState(TypedDict):
     id: str
 
 
-@dataclass(kw_only=True)
+@dataclass
 class SearchStateOutput:
     running_summary: str = field(default=None)  # Final report
+
+
+class ImproveState(TypedDict):
+    """State for content improvement workflow"""
+    original_content: str
+    issues_to_address: str
+    target_keywords: str
+    article_tone: str
+    word_count: int
+    link_count: int
+    content_analysis: dict
+    research_topics: Annotated[list, operator.add]
+    research_results: Annotated[list, operator.add]
+    improved_content: str
+    improvements_made: Annotated[list, operator.add]
+    compliance_check: dict
