@@ -17,11 +17,11 @@ export default function Navigation() {
             
             <div className="flex items-center gap-1">
               <Link
-                to="/app"
+                to="/"
                 className={cn(
                   "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                   "hover:bg-muted/50",
-                  location.pathname === "/app" 
+                  location.pathname === "/" 
                     ? "bg-muted text-foreground" 
                     : "text-muted-foreground hover:text-foreground"
                 )}
@@ -33,11 +33,11 @@ export default function Navigation() {
               </Link>
               
               <Link
-                to="/app/c"
+                to="/c"
                 className={cn(
                   "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                   "hover:bg-muted/50",
-                  location.pathname === "/app/c"
+                  location.pathname === "/c"
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 )}

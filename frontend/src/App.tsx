@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/lib/theme-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import ArticleGenerator from "@/pages/ArticleGenerator";
@@ -13,9 +13,8 @@ export default function App() {
         <Navigation />
         
         <Routes>
-          <Route path="/" element={<Navigate to="/app" replace />} />
-          <Route path="/app" element={<ArticleGenerator />} />
-          <Route path="/app/c" element={<ContentImprover />} />
+          <Route path="/" element={<ArticleGenerator />} />
+          <Route path="/c" element={<ContentImprover />} />
         </Routes>
       </div>
     </ThemeProvider>
