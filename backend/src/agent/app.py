@@ -1,7 +1,7 @@
 # mypy: disable - error - code = "no-untyped-def,misc"
 import pathlib
 from fastapi import FastAPI, Response, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.runnables import RunnableConfig
@@ -20,6 +20,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Redirect root to /app
+@app.get("/")
+async def redirect_to_app():
+    return RedirectResponse(url="/app", status_code=302)
 
 # Add health check endpoint
 @app.get("/health")
