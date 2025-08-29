@@ -11,7 +11,7 @@ export default function ArticleGenerator() {
   const [prompt, setPrompt] = useState("");
   const [keywords, setKeywords] = useState("");
   const [effort, setEffort] = useState("medium");
-  const [model, setModel] = useState("gemini-2.5-flash");
+  const [model, setModel] = useState("gemini-2.5-flash-lite");
   const [tone, setTone] = useState("professional");
   const [wordCount, setWordCount] = useState(1000);
   const [linkCount, setLinkCount] = useState(5);
@@ -33,15 +33,15 @@ export default function ArticleGenerator() {
     switch (effort) {
       case "low":
         initial_search_query_count = 1;
-        max_research_loops = 1;
+        max_research_loops = 0;  // No reflection step for low effort
         break;
       case "medium":
         initial_search_query_count = 2;
-        max_research_loops = 2;
+        max_research_loops = 1;  // Limited to 1 research loop
         break;
       case "high":
         initial_search_query_count = 3;
-        max_research_loops = 3;
+        max_research_loops = 2;  // Reduced from 3 to 2
         break;
     }
 

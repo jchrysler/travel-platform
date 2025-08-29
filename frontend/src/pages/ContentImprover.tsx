@@ -12,6 +12,7 @@ export default function ContentImprover() {
   const [issues, setIssues] = useState("");
   const [keywords, setKeywords] = useState("");
   const [tone, setTone] = useState("professional");
+  const [model, setModel] = useState("gemini-2.5-flash-lite");
   const [wordCount, setWordCount] = useState(1000);
   const [linkCount, setLinkCount] = useState(5);
   const [improvedContent, setImprovedContent] = useState("");
@@ -46,6 +47,7 @@ export default function ContentImprover() {
           issues_to_address: issues,
           target_keywords: keywords,
           article_tone: tone,
+          model: model,
           word_count: wordCount,
           link_count: linkCount,
         }),
@@ -71,7 +73,7 @@ export default function ContentImprover() {
     } finally {
       setIsLoading(false);
     }
-  }, [originalContent, issues, keywords, tone, wordCount, linkCount]);
+  }, [originalContent, issues, keywords, tone, model, wordCount, linkCount]);
 
   const handleRegenerate = useCallback(() => {
     if (originalContent.trim()) {
@@ -162,6 +164,23 @@ export default function ContentImprover() {
 
               {/* Configuration Grid */}
               <div className="grid grid-cols-2 gap-3">
+                {/* AI Model */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    AI Model
+                  </label>
+                  <Select value={model} onValueChange={setModel} disabled={isLoading}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gemini-2.5-flash-lite">Flash Lite</SelectItem>
+                      <SelectItem value="gemini-2.5-flash">Flash</SelectItem>
+                      <SelectItem value="gemini-2.5-pro">Pro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Writing Tone */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
@@ -330,7 +349,7 @@ export default function ContentImprover() {
                 article={improvedContent}
                 tone={tone}
                 effort="high"
-                model="gemini-2.5-flash"
+                model={model}
                 wordCount={wordCount}
                 linkCount={linkCount}
                 onReset={handleReset}

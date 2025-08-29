@@ -32,8 +32,11 @@ genai_client = Client(api_key=os.getenv("GEMINI_API_KEY"))
 def analyze_content(state: ImproveState, config: RunnableConfig) -> Dict[str, Any]:
     """Analyze the original content to identify issues and gaps."""
     
+    # Use the model from state or default to gemini-2.5-flash-lite
+    model = state.get("model", "gemini-2.5-flash-lite")
+    
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model=model,
         temperature=0.7,
         max_retries=2,
         api_key=os.getenv("GEMINI_API_KEY"),
@@ -79,13 +82,16 @@ def analyze_content(state: ImproveState, config: RunnableConfig) -> Dict[str, An
 def research_evidence(state: ImproveState, config: RunnableConfig) -> Dict[str, Any]:
     """Research evidence for unsubstantiated claims."""
     
+    # Use the model from state or default to gemini-2.5-flash-lite
+    model = state.get("model", "gemini-2.5-flash-lite")
+    
     research_results = []
     
     for topic in state.get("research_topics", [])[:5]:  # Limit to 5 searches
         try:
             # Use Google Search API
             search_response = genai_client.models.generate_content(
-                model='gemini-2.5-flash',
+                model=model,
                 contents=f"Search the web for: {topic}"
             )
             
@@ -108,8 +114,11 @@ def research_evidence(state: ImproveState, config: RunnableConfig) -> Dict[str, 
 def improve_content(state: ImproveState, config: RunnableConfig) -> Dict[str, Any]:
     """Rewrite content with improvements and evidence."""
     
+    # Use the model from state or default to gemini-2.5-flash-lite
+    model = state.get("model", "gemini-2.5-flash-lite")
+    
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model=model,
         temperature=0.7,
         max_retries=2,
         api_key=os.getenv("GEMINI_API_KEY"),
@@ -165,8 +174,11 @@ def improve_content(state: ImproveState, config: RunnableConfig) -> Dict[str, An
 def check_compliance(state: ImproveState, config: RunnableConfig) -> Dict[str, Any]:
     """Verify the improved content meets compliance standards."""
     
+    # Use the model from state or default to gemini-2.5-flash-lite
+    model = state.get("model", "gemini-2.5-flash-lite")
+    
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model=model,
         temperature=0.3,
         max_retries=2,
         api_key=os.getenv("GEMINI_API_KEY"),

@@ -63,6 +63,7 @@ class ImproveState(TypedDict):
     issues_to_address: str
     target_keywords: str
     article_tone: str
+    model: str
     word_count: int
     link_count: int
     content_analysis: dict
