@@ -7,6 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
 
 interface ItineraryDay {
   day: number;
@@ -34,6 +35,7 @@ export default function TripBuilder() {
   const [travelStyle, setTravelStyle] = useState("comfort");
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState("");
+  const [finalItinerary, setFinalItinerary] = useState("");
   const [itinerary, setItinerary] = useState<ItineraryDay[]>([]);
   const [error, setError] = useState("");
 
@@ -54,6 +56,7 @@ export default function TripBuilder() {
     setIsGenerating(true);
     setError("");
     setStreamingText("");
+    setFinalItinerary("");
     setItinerary([]);
 
     try {
@@ -86,6 +89,9 @@ export default function TripBuilder() {
           if (line.startsWith("data: ")) {
             const data = line.slice(6);
             if (data === "[DONE]") {
+              // Move streaming text to final itinerary when done
+              setFinalItinerary(streamingText);
+              setStreamingText("");
               setIsGenerating(false);
             } else {
               try {
@@ -251,9 +257,9 @@ export default function TripBuilder() {
 
         {/* Output Section */}
         <div className="space-y-6">
-          {isGenerating && streamingText && (
+          {(isGenerating && streamingText) && (
             <Card className="p-6">
-              <div className="animate-pulse space-y-2">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
                   <div className="w-2 h-2 bg-primary rounded-full animate-bounce delay-100" />
@@ -263,8 +269,16 @@ export default function TripBuilder() {
                   </span>
                 </div>
                 <div className="prose prose-sm max-w-none">
-                  <div className="whitespace-pre-wrap">{streamingText}</div>
+                  <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(streamingText) }} />
                 </div>
+              </div>
+            </Card>
+          )}
+
+          {!isGenerating && finalItinerary && (
+            <Card className="p-6">
+              <div className="prose prose-sm max-w-none">
+                <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(finalItinerary) }} />
               </div>
             </Card>
           )}
@@ -394,7 +408,7 @@ export default function TripBuilder() {
             </div>
           )}
 
-          {!isGenerating && !streamingText && itinerary.length === 0 && (
+          {!isGenerating && !streamingText && !finalItinerary && itinerary.length === 0 && (
             <Card className="p-12 text-center">
               <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">Your Itinerary Will Appear Here</h3>

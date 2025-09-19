@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowLeft, Search, Sparkles, MapPin, Info } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Search, Sparkles, MapPin, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
 
 interface SearchResult {
   id: string;
@@ -48,34 +49,34 @@ const cities: CityData[] = [
     description: "A mesmerizing blend of ultra-modern and traditional, from neon-lit skyscrapers to historic temples",
     popularQueries: {
       food: [
-        "Best ramen within walking distance of Shibuya Station",
-        "Where do Tokyo salarymen eat lunch in Ginza?",
-        "Late-night food options near Shinjuku after midnight",
-        "Michelin-starred restaurants under ¥5000 for lunch",
+        "best restaurants in Tokyo",
+        "cheap food in Tokyo",
+        "Tokyo food markets",
+        "vegetarian restaurants Tokyo",
       ],
       culture: [
-        "Traditional tea ceremony experiences for beginners",
-        "Best time to visit Senso-ji Temple to avoid crowds",
-        "Art galleries in Roppongi worth visiting",
-        "Sumo practice sessions open to tourists",
+        "things to do in Tokyo",
+        "Tokyo museums and galleries",
+        "traditional experiences Tokyo",
+        "Tokyo temples and shrines",
       ],
       nightlife: [
-        "Rooftop bars with Mount Fuji views",
-        "Best izakayas in Golden Gai",
-        "Jazz clubs in Shibuya open late",
-        "Karaoke places that welcome foreigners",
+        "Tokyo nightlife guide",
+        "best bars in Tokyo",
+        "Tokyo clubs and dancing",
+        "late night Tokyo activities",
       ],
       family: [
-        "Kid-friendly restaurants near Tokyo Disneyland",
-        "Interactive museums for children under 10",
-        "Parks with playgrounds in central Tokyo",
-        "Family onsen that accept tattoos",
+        "family activities in Tokyo",
+        "Tokyo with kids",
+        "child-friendly restaurants Tokyo",
+        "Tokyo theme parks",
       ],
       budget: [
-        "Free observation decks with city views",
-        "Best 100-yen shops for souvenirs",
-        "Cheap eats in Harajuku under ¥1000",
-        "Free walking tours in historic districts",
+        "budget tours in Tokyo",
+        "free things to do Tokyo",
+        "cheap hotels Tokyo",
+        "Tokyo on a budget",
       ],
     },
   },
@@ -87,34 +88,34 @@ const cities: CityData[] = [
     description: "The cradle of the Renaissance, where every corner reveals artistic masterpieces and Tuscan charm",
     popularQueries: {
       food: [
-        "Authentic Florentine steak restaurants locals love",
-        "Best gelato shops away from tourist areas",
-        "Wine bars with Tuscan tastings under €30",
-        "Morning markets for fresh produce and local specialties",
+        "best restaurants in Florence",
+        "Florence food tours",
+        "authentic Italian food Florence",
+        "Florence wine tasting",
       ],
       culture: [
-        "Skip-the-line strategies for Uffizi Gallery",
-        "Lesser-known Medici sites worth exploring",
-        "Artisan workshops open for visitors",
-        "Best viewpoints for sunset over the Duomo",
+        "things to do in Florence",
+        "Florence art museums",
+        "Florence historic sites",
+        "Renaissance tours Florence",
       ],
       nightlife: [
-        "Aperitivo spots with river views",
-        "Live music venues in Oltrarno",
-        "Wine bars open after 11 PM",
-        "Dancing clubs popular with students",
+        "Florence nightlife guide",
+        "best bars in Florence",
+        "Florence evening activities",
+        "live music Florence",
       ],
       family: [
-        "Hands-on art activities for kids",
-        "Gelato-making classes for families",
-        "Parks with playgrounds near city center",
-        "Kid-friendly trattorias with high chairs",
+        "family activities in Florence",
+        "Florence with kids",
+        "child-friendly restaurants Florence",
+        "Florence family tours",
       ],
       budget: [
-        "Free church visits with Renaissance art",
-        "Student discounts at major museums",
-        "Affordable lunch spots near Santa Croce",
-        "Free walking tours of historic center",
+        "budget tours in Florence",
+        "free things to do Florence",
+        "cheap hotels Florence",
+        "Florence on a budget",
       ],
     },
   },
@@ -126,53 +127,65 @@ const cities: CityData[] = [
     description: "The city that never sleeps, where world-class culture meets incredible diversity",
     popularQueries: {
       food: [
-        "Best pizza by the slice in Brooklyn",
-        "Authentic ethnic food in Queens under $15",
-        "Brunch spots in West Village worth the wait",
-        "Late-night food near Times Square after shows",
+        "best restaurants in New York",
+        "NYC food tours",
+        "cheap eats NYC",
+        "NYC brunch spots",
       ],
       culture: [
-        "Free museum days and hours",
-        "Off-Broadway shows worth seeing",
-        "Street art tours in Bushwick",
-        "Historic sites in Lower Manhattan",
+        "things to do in New York",
+        "NYC museums",
+        "Broadway shows NYC",
+        "NYC tourist attractions",
       ],
       nightlife: [
-        "Rooftop bars with Empire State views",
-        "Jazz clubs in Harlem",
-        "Speakeasies in East Village",
-        "Dance clubs in Meatpacking District",
+        "NYC nightlife guide",
+        "best bars in New York",
+        "NYC clubs and lounges",
+        "rooftop bars NYC",
       ],
       family: [
-        "Playgrounds in Central Park",
-        "Interactive museums for kids",
-        "Family-friendly restaurants in Tribeca",
-        "Free activities for children in summer",
+        "family activities in New York",
+        "NYC with kids",
+        "child-friendly restaurants NYC",
+        "NYC family attractions",
       ],
       budget: [
-        "Free events this weekend",
-        "Happy hour deals in Midtown",
-        "Cheap eats in Chinatown",
-        "Free ferry rides with skyline views",
+        "budget tours in NYC",
+        "free things to do New York",
+        "cheap hotels NYC",
+        "New York on a budget",
       ],
     },
   },
 ];
 
 export default function DestinationExplorer() {
+  const [searchParams] = useSearchParams();
   const [selectedCity, setSelectedCity] = useState<CityData | null>(null);
   const [customQuery, setCustomQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+
+  // Check URL params for initial city
+  useEffect(() => {
+    const cityParam = searchParams.get('city');
+    if (cityParam) {
+      const city = cities.find(c => c.id.toLowerCase() === cityParam.toLowerCase());
+      if (city) {
+        setSelectedCity(city);
+      }
+    }
+  }, [searchParams]);
   const [searchHistory, setSearchHistory] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [currentResponse, setCurrentResponse] = useState("");
 
   const categories = [
-    { id: "food", name: "Food", emoji: "🍜" },
-    { id: "culture", name: "Culture", emoji: "🏛️" },
-    { id: "nightlife", name: "Nightlife", emoji: "🌃" },
-    { id: "family", name: "Family", emoji: "👨‍👩‍👧" },
-    { id: "budget", name: "Budget", emoji: "💰" },
+    { id: "food", name: "Food" },
+    { id: "culture", name: "Culture" },
+    { id: "nightlife", name: "Nightlife" },
+    { id: "family", name: "Family" },
+    { id: "budget", name: "Budget" },
   ];
 
   const handleCitySelect = (city: CityData) => {
@@ -342,23 +355,33 @@ export default function DestinationExplorer() {
             </div>
           </Card>
 
-          {/* Categories */}
+          {/* Popular Searches */}
           <div>
-            <h3 className="text-lg font-semibold mb-3">Popular Topics</h3>
-            <div className="grid grid-cols-2 gap-2">
+            <h3 className="text-lg font-semibold mb-3">Popular Searches</h3>
+            <div className="space-y-2">
               {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id === selectedCategory ? "" : cat.id)}
-                  className={`p-3 rounded-lg border transition-all ${
-                    cat.id === selectedCategory
-                      ? "border-primary bg-primary/10"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <div className="text-2xl mb-1">{cat.emoji}</div>
-                  <div className="text-sm font-medium">{cat.name}</div>
-                </button>
+                <div key={cat.id} className="space-y-1">
+                  <button
+                    onClick={() => setSelectedCategory(cat.id === selectedCategory ? "" : cat.id)}
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {cat.name}
+                  </button>
+                  {cat.id === selectedCategory && (
+                    <div className="pl-4 space-y-1">
+                      {selectedCity.popularQueries[cat.id as keyof typeof selectedCity.popularQueries].map((query, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleQuerySelect(query)}
+                          disabled={isSearching}
+                          className="block w-full text-left text-sm p-2 rounded hover:bg-muted transition-colors"
+                        >
+                          {query}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -398,35 +421,73 @@ export default function DestinationExplorer() {
                 <span className="text-sm text-muted-foreground">Searching {selectedCity.name}...</span>
               </div>
               <div className="prose prose-sm max-w-none">
-                <div className="whitespace-pre-wrap">{currentResponse}</div>
+                <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(currentResponse) }} />
               </div>
             </Card>
           )}
 
-          {/* Ad Placeholder */}
+          {/* Google-style Ad Block */}
           {searchHistory.length > 0 && !isSearching && (
-            <Card className="p-4 bg-muted/30 border-dashed">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                <Info className="w-3 h-3" />
-                Sponsored Results
+            <Card className="p-4 bg-slate-50/50 dark:bg-slate-900/20 border">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
+                <Globe className="w-3 h-3" />
+                <span>Sponsored</span>
               </div>
-              <div className="space-y-2">
-                <div className="p-3 bg-background rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-sm">Hotels in {selectedCity.name}</div>
-                      <div className="text-xs text-muted-foreground">Compare prices from $89/night</div>
+              <div className="space-y-3">
+                {/* Ad 1 */}
+                <div className="bg-background p-3 rounded-lg border hover:shadow-sm transition-shadow cursor-pointer">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-2 py-0.5 rounded">Ad</span>
+                        <span className="text-xs text-muted-foreground">Booking.com</span>
+                      </div>
+                      <h4 className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">
+                        Hotels in {selectedCity.name} - Up to 50% Off
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Book now and save on {selectedCity.name} hotels. Free cancellation on most rooms.
+                        Price guarantee. 24/7 customer service.
+                      </p>
                     </div>
-                    <Button size="sm" variant="outline">View Deals</Button>
                   </div>
                 </div>
-                <div className="p-3 bg-background rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-sm">Tours & Activities</div>
-                      <div className="text-xs text-muted-foreground">Skip the line tickets available</div>
+
+                {/* Ad 2 */}
+                <div className="bg-background p-3 rounded-lg border hover:shadow-sm transition-shadow cursor-pointer">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-2 py-0.5 rounded">Ad</span>
+                        <span className="text-xs text-muted-foreground">GetYourGuide</span>
+                      </div>
+                      <h4 className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">
+                        {selectedCity.name} Tours & Activities - Book Online
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Skip-the-line tickets • Expert guides • Small groups • Free cancellation
+                        Best price guaranteed for all {selectedCity.name} attractions.
+                      </p>
                     </div>
-                    <Button size="sm" variant="outline">Book Now</Button>
+                  </div>
+                </div>
+
+                {/* Ad 3 */}
+                <div className="bg-background p-3 rounded-lg border hover:shadow-sm transition-shadow cursor-pointer">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-2 py-0.5 rounded">Ad</span>
+                        <span className="text-xs text-muted-foreground">TripAdvisor</span>
+                      </div>
+                      <h4 className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">
+                        {selectedCity.name} Restaurant Reservations
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Reserve tables at top-rated restaurants. Read millions of reviews.
+                        Find the perfect dining experience in {selectedCity.name}.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -445,7 +506,7 @@ export default function DestinationExplorer() {
                 </div>
               </div>
               <div className="prose prose-sm max-w-none">
-                <div className="whitespace-pre-wrap">{result.response}</div>
+                <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(result.response) }} />
               </div>
 
               {/* Simulated Search Results */}
