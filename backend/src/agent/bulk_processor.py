@@ -36,9 +36,12 @@ class BulkArticleProcessor:
     
     async def start(self):
         """Start the processor and connect to LangGraph."""
-        self.client = get_client(url=self.langgraph_url)
+        import os
+        # Only use SDK client in local development
+        if not os.getenv("RAILWAY_ENVIRONMENT"):
+            self.client = get_client(url=self.langgraph_url)
         self.processing = True
-        logger.info(f"Bulk processor started, connected to {self.langgraph_url}")
+        logger.info(f"Bulk processor started, mode: {'production' if os.getenv('RAILWAY_ENVIRONMENT') else 'local'}")
     
     async def stop(self):
         """Stop the processor."""
@@ -49,47 +52,70 @@ class BulkArticleProcessor:
     
     async def process_article(self, article_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process a single article using the LangGraph agent.
-        
+
         Args:
             article_data: Article parameters (topic, keywords, tone, etc.)
-            
+
         Returns:
             Generated article content
         """
         try:
-            # Prepare input for the LangGraph agent
-            # Use the same format as the single article generator
-            agent_input = {
-                "research_topic": article_data["topic"],
-                "article_tone": article_data.get("tone", "professional"),
-                "word_count": article_data.get("word_count", 1000),
-                "keywords": article_data.get("keywords", ""),
-                "custom_persona": article_data.get("custom_persona", ""),
-                "link_count": article_data.get("link_count", 5),
-                "use_inline_links": article_data.get("use_inline_links", True),
-                "use_apa_style": article_data.get("use_apa_style", False),
-                "initial_search_query_count": 2,  # Medium effort
-                "max_research_loops": 2
-            }
-            
-            # Create a thread and run the agent
-            assistants = await self.client.assistants.search(graph_id="agent")
-            assistant = assistants[0]
-            thread = await self.client.threads.create()
-            
-            # Stream the agent execution
-            final_content = None
-            async for chunk in self.client.runs.stream(
-                thread["thread_id"],
-                assistant["assistant_id"],
-                input=agent_input,
-                stream_mode="updates"
-            ):
-                # Capture the final answer
-                if chunk.data and isinstance(chunk.data, list):
-                    for item in chunk.data:
-                        if isinstance(item, dict) and "answer" in item:
-                            final_content = item["answer"]
+            # In production, use the local graph directly instead of SDK
+            import os
+            if os.getenv("RAILWAY_ENVIRONMENT"):
+                # Use the local graph directly
+                from langchain_core.runnables import RunnableConfig
+                from agent.graph import graph
+
+                agent_input = {
+                    "research_topic": article_data["topic"],
+                    "article_tone": article_data.get("tone", "professional"),
+                    "word_count": article_data.get("word_count", 1000),
+                    "keywords": article_data.get("keywords", ""),
+                    "custom_persona": article_data.get("custom_persona", ""),
+                    "link_count": article_data.get("link_count", 5),
+                    "use_inline_links": article_data.get("use_inline_links", True),
+                    "use_apa_style": article_data.get("use_apa_style", False),
+                    "initial_search_query_count": 2,  # Medium effort
+                    "max_research_loops": 2
+                }
+
+                config = RunnableConfig()
+                result = await graph.ainvoke(agent_input, config=config)
+                final_content = result.get("answer", "")
+            else:
+                # Use LangGraph SDK for local development
+                agent_input = {
+                    "research_topic": article_data["topic"],
+                    "article_tone": article_data.get("tone", "professional"),
+                    "word_count": article_data.get("word_count", 1000),
+                    "keywords": article_data.get("keywords", ""),
+                    "custom_persona": article_data.get("custom_persona", ""),
+                    "link_count": article_data.get("link_count", 5),
+                    "use_inline_links": article_data.get("use_inline_links", True),
+                    "use_apa_style": article_data.get("use_apa_style", False),
+                    "initial_search_query_count": 2,  # Medium effort
+                    "max_research_loops": 2
+                }
+
+                # Create a thread and run the agent
+                assistants = await self.client.assistants.search(graph_id="agent")
+                assistant = assistants[0]
+                thread = await self.client.threads.create()
+
+                # Stream the agent execution
+                final_content = None
+                async for chunk in self.client.runs.stream(
+                    thread["thread_id"],
+                    assistant["assistant_id"],
+                    input=agent_input,
+                    stream_mode="updates"
+                ):
+                    # Capture the final answer
+                    if chunk.data and isinstance(chunk.data, list):
+                        for item in chunk.data:
+                            if isinstance(item, dict) and "answer" in item:
+                                final_content = item["answer"]
             
             if not final_content:
                 raise ValueError("No content generated")
