@@ -10,21 +10,12 @@ from agent.graph import graph
 from agent.improve_graph import improve_graph
 from agent.travel_api import create_travel_routes
 from agent.bulk_api import router as bulk_router
-from agent.database import init_db
 
 # Define the FastAPI app
 app = FastAPI()
 
-# Initialize database tables on startup
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database tables on application startup."""
-    try:
-        init_db()
-        print("Database tables initialized successfully")
-    except Exception as e:
-        print(f"Warning: Could not initialize database: {e}")
-        # Don't fail startup if DB init fails - other features should still work
+# Note: Database tables are created manually via SQL script
+# The production database tables have been created and are ready to use
 
 # Add CORS middleware
 app.add_middleware(
