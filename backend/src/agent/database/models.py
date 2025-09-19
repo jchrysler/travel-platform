@@ -15,13 +15,6 @@ except ImportError:
 
 class BatchStatus(str, Enum):
     """Status options for article batches."""
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-    # Also support lowercase attributes for database compatibility
     pending = "pending"
     processing = "processing"
     completed = "completed"
@@ -31,13 +24,6 @@ class BatchStatus(str, Enum):
 
 class ArticleStatus(str, Enum):
     """Status options for individual articles."""
-    QUEUED = "queued"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    SKIPPED = "skipped"
-
-    # Also support lowercase attributes for database compatibility
     queued = "queued"
     processing = "processing"
     completed = "completed"
