@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Sparkles, FileEdit } from "lucide-react";
+import { Sparkles, FileEdit, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Navigation() {
@@ -45,6 +45,22 @@ export default function Navigation() {
                 <div className="flex items-center gap-2">
                   <FileEdit className="h-4 w-4" />
                   Content Improver
+                </div>
+              </Link>
+
+              <Link
+                to="/travel"
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  "hover:bg-muted/50",
+                  location.pathname.startsWith("/travel")
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Travel Platform
                 </div>
               </Link>
             </div>

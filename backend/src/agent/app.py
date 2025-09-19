@@ -8,6 +8,7 @@ from langchain_core.runnables import RunnableConfig
 # CompiledGraph import removed - not needed
 from agent.graph import graph
 from agent.improve_graph import improve_graph
+from agent.travel_api import create_travel_routes
 
 # Define the FastAPI app
 app = FastAPI()
@@ -20,6 +21,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add travel routes
+app = create_travel_routes(app)
 
 # Redirect root to /app
 @app.get("/")
