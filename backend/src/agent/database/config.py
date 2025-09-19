@@ -15,8 +15,9 @@ DATABASE_URL = os.getenv(
     "sqlite:///./article_generator.db"  # Default to SQLite for easy development
 )
 
-# For PostgreSQL in production, use:
-# DATABASE_URL = "postgresql://user:password@localhost/article_generator"
+# Railway and Heroku use postgres:// but SQLAlchemy needs postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # Create engine
 if DATABASE_URL.startswith("sqlite"):
@@ -46,4 +47,6 @@ def get_db() -> Generator[Session, None, None]:
 def init_db():
     """Initialize database tables."""
     from . import models  # Import models to register them
+    print(f"Initializing database with URL pattern: {DATABASE_URL[:20]}...")
     Base.metadata.create_all(bind=engine)
+    print("Database tables created successfully")
