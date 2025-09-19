@@ -62,8 +62,15 @@ class BulkArticleProcessor:
         try:
             # In production, use the local graph directly instead of SDK
             import os
-            if os.getenv("RAILWAY_ENVIRONMENT"):
-                # Use the local graph directly
+
+            # Check if we're in production (Railway or if client is None)
+            is_production = os.getenv("RAILWAY_ENVIRONMENT") or self.client is None
+
+            logger.info(f"Environment check - RAILWAY_ENVIRONMENT: {os.getenv('RAILWAY_ENVIRONMENT')}, client: {self.client is not None}, is_production: {is_production}")
+
+            if is_production:
+                # Use the local graph directly in production
+                logger.info(f"Processing article in PRODUCTION mode: {article_data['topic']}")
                 from langchain_core.runnables import RunnableConfig
                 from agent.graph import graph
 
@@ -83,8 +90,13 @@ class BulkArticleProcessor:
                 config = RunnableConfig()
                 result = await graph.ainvoke(agent_input, config=config)
                 final_content = result.get("answer", "")
+                logger.info(f"Article processed successfully in production: {article_data['topic']}")
             else:
                 # Use LangGraph SDK for local development
+                if not self.client:
+                    raise ValueError("LangGraph client not initialized for local mode")
+
+                logger.info(f"Processing article in LOCAL mode: {article_data['topic']}")
                 agent_input = {
                     "research_topic": article_data["topic"],
                     "article_tone": article_data.get("tone", "professional"),
