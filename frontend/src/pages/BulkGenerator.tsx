@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Upload, Download, FileText, AlertCircle, CheckCircle, Clock, X, RefreshCw, Loader2 } from 'lucide-react';
+import { Upload, Download, FileText, AlertCircle, CheckCircle, Clock, X, RefreshCw, Loader2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -19,6 +19,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 interface Batch {
   batch_id: string;
@@ -50,6 +51,8 @@ const BulkGenerator: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [selectedArticle, setSelectedArticle] = useState<any>(null);
+  const [showArticleModal, setShowArticleModal] = useState(false);
 
   const apiUrl = import.meta.env.DEV
     ? "http://localhost:2024"
@@ -210,6 +213,35 @@ const BulkGenerator: React.FC = () => {
     } catch (error) {
       console.error('Error cancelling batch:', error);
     }
+  };
+
+  // View single article
+  const viewArticle = async (batchId: string, articleId: number) => {
+    try {
+      const response = await fetch(`${apiUrl}/api/bulk/batch/${batchId}/article/${articleId}`);
+      if (response.ok) {
+        const article = await response.json();
+        setSelectedArticle(article);
+        setShowArticleModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching article:', error);
+    }
+  };
+
+  // Copy article to clipboard
+  const copyToClipboard = () => {
+    if (!selectedArticle) return;
+
+    // Format for Google Docs - include title and content
+    const formattedContent = `${selectedArticle.title}\n\n${selectedArticle.content}`;
+
+    navigator.clipboard.writeText(formattedContent).then(() => {
+      // Show success message
+      alert('Article copied to clipboard!');
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+    });
   };
 
   // View batch details
@@ -468,6 +500,7 @@ const BulkGenerator: React.FC = () => {
                         <TableHead>Status</TableHead>
                         <TableHead>Word Count</TableHead>
                         <TableHead>Time</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -480,6 +513,17 @@ const BulkGenerator: React.FC = () => {
                             {article.processing_time_minutes
                               ? `${article.processing_time_minutes.toFixed(1)} min`
                               : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {article.status === 'completed' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => viewArticle(batchDetails.batch_id, article.id)}
+                              >
+                                View
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -506,6 +550,59 @@ const BulkGenerator: React.FC = () => {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Article Viewer Modal */}
+      <Dialog open={showArticleModal} onOpenChange={setShowArticleModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedArticle?.title || 'Article'}</DialogTitle>
+            <DialogDescription>
+              <div className="flex gap-4 text-sm text-gray-600">
+                <span>Topic: {selectedArticle?.topic}</span>
+                <span>Words: {selectedArticle?.word_count}</span>
+                <span>Tone: {selectedArticle?.tone}</span>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedArticle && (
+            <div className="space-y-4">
+              {/* Copy button */}
+              <div className="flex justify-end">
+                <Button onClick={copyToClipboard}>
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy Article
+                </Button>
+              </div>
+
+              {/* Article content */}
+              <div className="prose max-w-none">
+                <div className="border rounded-lg p-6 bg-white">
+                  <h1 className="text-2xl font-bold mb-4">{selectedArticle.title}</h1>
+                  <div className="whitespace-pre-wrap">{selectedArticle.content}</div>
+                </div>
+              </div>
+
+              {/* Keywords if present */}
+              {selectedArticle.keywords && (
+                <div className="text-sm text-gray-600">
+                  <strong>Keywords:</strong> {selectedArticle.keywords}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowArticleModal(false)}>
+              Close
+            </Button>
+            <Button onClick={copyToClipboard}>
+              <Copy className="w-4 h-4 mr-2" />
+              Copy to Clipboard
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

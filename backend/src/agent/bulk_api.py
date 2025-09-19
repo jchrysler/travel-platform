@@ -474,6 +474,48 @@ def get_batch_logs_endpoint(
     }
 
 
+@router.get("/batch/{batch_id}/article/{article_id}")
+def get_article(
+    batch_id: str,
+    article_id: int,
+    user_id: str = "default_user",
+    db: Session = Depends(get_db)
+):
+    """Get a single article from a batch."""
+    batch = get_batch(db, batch_id)
+
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    if batch.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    # Find the article
+    article = None
+    for a in batch.articles:
+        if a.id == article_id:
+            article = a
+            break
+
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    if article.status != ArticleStatus.completed:
+        raise HTTPException(status_code=400, detail=f"Article is {article.status.value}, not completed")
+
+    return {
+        "id": article.id,
+        "topic": article.topic,
+        "keywords": article.keywords,
+        "tone": article.tone,
+        "title": article.generated_title,
+        "content": article.generated_content,
+        "word_count": article.word_count_actual,
+        "status": article.status.value,
+        "completed_at": article.completed_at.isoformat() if article.completed_at else None
+    }
+
+
 @router.get("/batch/{batch_id}/status/stream")
 async def stream_batch_status(
     batch_id: str,
