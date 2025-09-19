@@ -60,7 +60,7 @@ class ArticleBatch(Base):
     uploaded_filename = Column(String(255))
     
     # Status tracking
-    status = Column(SQLEnum(BatchStatus), default=BatchStatus.PENDING, nullable=False)
+    status = Column(SQLEnum(BatchStatus), default=BatchStatus.pending, nullable=False)
     total_articles = Column(Integer, default=0)
     completed_articles = Column(Integer, default=0)
     failed_articles = Column(Integer, default=0)
@@ -86,7 +86,7 @@ class ArticleBatch(Base):
     @property
     def is_complete(self) -> bool:
         """Check if batch processing is complete."""
-        return self.status in [BatchStatus.COMPLETED, BatchStatus.FAILED, BatchStatus.CANCELLED]
+        return self.status in [BatchStatus.completed, BatchStatus.failed, BatchStatus.cancelled]
 
 
 class BatchArticle(Base):
@@ -108,7 +108,7 @@ class BatchArticle(Base):
     use_apa_style = Column(Integer, default=0)
     
     # Processing status
-    status = Column(SQLEnum(ArticleStatus), default=ArticleStatus.QUEUED, nullable=False)
+    status = Column(SQLEnum(ArticleStatus), default=ArticleStatus.queued, nullable=False)
     processing_attempts = Column(Integer, default=0)
     error_message = Column(Text)
     
@@ -134,7 +134,7 @@ class BatchArticle(Base):
     @property
     def is_complete(self) -> bool:
         """Check if article processing is complete."""
-        return self.status in [ArticleStatus.COMPLETED, ArticleStatus.FAILED, ArticleStatus.SKIPPED]
+        return self.status in [ArticleStatus.completed, ArticleStatus.failed, ArticleStatus.skipped]
     
     @property
     def processing_time_minutes(self) -> Optional[float]:

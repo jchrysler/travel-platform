@@ -94,7 +94,7 @@ def get_next_queued_article(db: Session, batch_id: int) -> Optional[BatchArticle
     """Get the next queued article from a batch."""
     return db.query(BatchArticle).filter(
         BatchArticle.batch_id == batch_id,
-        BatchArticle.status == ArticleStatus.QUEUED
+        BatchArticle.status == ArticleStatus.queued
     ).order_by(BatchArticle.row_index).first()
 
 
@@ -113,11 +113,11 @@ def update_article_status(
     
     article.status = status
     
-    if status == ArticleStatus.PROCESSING:
+    if status == ArticleStatus.processing:
         article.started_at = datetime.utcnow()
         article.processing_attempts += 1
     
-    elif status == ArticleStatus.COMPLETED:
+    elif status == ArticleStatus.completed:
         article.completed_at = datetime.utcnow()
         if article.started_at:
             duration = (article.completed_at - article.started_at).total_seconds()
@@ -129,27 +129,27 @@ def update_article_status(
             article.generated_meta_description = generated_content.get("meta_description")
             article.word_count_actual = generated_content.get("word_count")
     
-    elif status == ArticleStatus.FAILED:
+    elif status == ArticleStatus.failed:
         article.completed_at = datetime.utcnow()
         article.error_message = error_message
     
     # Update batch counters
     batch = article.batch
-    if status == ArticleStatus.COMPLETED:
+    if status == ArticleStatus.completed:
         batch.completed_articles += 1
-    elif status == ArticleStatus.FAILED:
+    elif status == ArticleStatus.failed:
         batch.failed_articles += 1
     
     # Check if batch is complete
     if batch.completed_articles + batch.failed_articles >= batch.total_articles:
-        batch.status = BatchStatus.COMPLETED
+        batch.status = BatchStatus.completed
         batch.completed_at = datetime.utcnow()
     
     # Log the status change
     log_entry = ProcessingLog(
         batch_id=batch.id,
         article_id=article.id,
-        level="INFO" if status != ArticleStatus.FAILED else "ERROR",
+        level="INFO" if status != ArticleStatus.failed else "ERROR",
         message=f"Article status changed to {status.value}",
         details={"error": error_message} if error_message else {}
     )
@@ -175,15 +175,15 @@ def update_batch_status(
     
     batch.status = status
     
-    if status == BatchStatus.PROCESSING:
+    if status == BatchStatus.processing:
         batch.started_at = datetime.utcnow()
-    elif status in [BatchStatus.COMPLETED, BatchStatus.FAILED, BatchStatus.CANCELLED]:
+    elif status in [BatchStatus.completed, BatchStatus.failed, BatchStatus.cancelled]:
         batch.completed_at = datetime.utcnow()
     
     # Log the status change
     log_entry = ProcessingLog(
         batch_id=batch.id,
-        level="INFO" if status != BatchStatus.FAILED else "ERROR",
+        level="INFO" if status != BatchStatus.failed else "ERROR",
         message=f"Batch status changed to {status.value}",
         details={"error": error_message} if error_message else {}
     )
@@ -211,11 +211,11 @@ def cancel_batch(db: Session, batch_id: str, user_id: str) -> ArticleBatch:
     # Cancel all queued articles
     db.query(BatchArticle).filter(
         BatchArticle.batch_id == batch.id,
-        BatchArticle.status == ArticleStatus.QUEUED
-    ).update({"status": ArticleStatus.SKIPPED})
+        BatchArticle.status == ArticleStatus.queued
+    ).update({"status": ArticleStatus.skipped})
     
     # Update batch status
-    batch.status = BatchStatus.CANCELLED
+    batch.status = BatchStatus.cancelled
     batch.completed_at = datetime.utcnow()
     
     # Log cancellation

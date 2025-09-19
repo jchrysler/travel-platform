@@ -227,7 +227,7 @@ def download_batch(
     # Prepare data for export
     data = []
     for article in batch.articles:
-        if article.status == ArticleStatus.COMPLETED:
+        if article.status == ArticleStatus.completed:
             data.append({
                 "topic": article.topic,
                 "keywords": article.keywords,
@@ -237,7 +237,7 @@ def download_batch(
                 "word_count": article.word_count_actual,
                 "status": "completed"
             })
-        elif article.status == ArticleStatus.FAILED:
+        elif article.status == ArticleStatus.failed:
             data.append({
                 "topic": article.topic,
                 "keywords": article.keywords,

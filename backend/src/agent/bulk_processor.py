@@ -136,7 +136,7 @@ class BulkArticleProcessor:
                 return
             
             # Update batch status to processing
-            batch = update_batch_status(db, batch.id, BatchStatus.PROCESSING)
+            batch = update_batch_status(db, batch.id, BatchStatus.processing)
             logger.info(f"Starting batch {batch_id} with {batch.total_articles} articles")
             
             self.current_batch_id = batch.id
@@ -153,7 +153,7 @@ class BulkArticleProcessor:
                 
                 # Update article status to processing
                 article = update_article_status(
-                    db, article.id, ArticleStatus.PROCESSING
+                    db, article.id, ArticleStatus.processing
                 )
                 
                 # Process the article
@@ -174,7 +174,7 @@ class BulkArticleProcessor:
                     article = update_article_status(
                         db,
                         article.id,
-                        ArticleStatus.COMPLETED,
+                        ArticleStatus.completed,
                         generated_content=result
                     )
                     logger.info(f"Article {article.id} completed successfully")
@@ -182,7 +182,7 @@ class BulkArticleProcessor:
                     article = update_article_status(
                         db,
                         article.id,
-                        ArticleStatus.FAILED,
+                        ArticleStatus.failed,
                         error_message=result.get("error", "Unknown error")
                     )
                     logger.error(f"Article {article.id} failed: {result.get('error')}")
@@ -194,7 +194,7 @@ class BulkArticleProcessor:
             db.refresh(batch)
             if batch.completed_articles + batch.failed_articles >= batch.total_articles:
                 # Batch is complete
-                final_status = BatchStatus.COMPLETED if batch.failed_articles == 0 else BatchStatus.COMPLETED
+                final_status = BatchStatus.completed if batch.failed_articles == 0 else BatchStatus.completed
                 batch = update_batch_status(db, batch.id, final_status)
                 logger.info(
                     f"Batch {batch_id} completed: "
@@ -206,7 +206,7 @@ class BulkArticleProcessor:
             logger.error(f"Error processing batch {batch_id}: {str(e)}")
             if batch:
                 update_batch_status(
-                    db, batch.id, BatchStatus.FAILED, error_message=str(e)
+                    db, batch.id, BatchStatus.failed, error_message=str(e)
                 )
         finally:
             db.close()
@@ -222,7 +222,7 @@ class BulkArticleProcessor:
                 from .database.models import ArticleBatch
                 
                 batch = db.query(ArticleBatch).filter(
-                    ArticleBatch.status == BatchStatus.PENDING
+                    ArticleBatch.status == BatchStatus.pending
                 ).order_by(ArticleBatch.created_at).first()
                 
                 if batch:
