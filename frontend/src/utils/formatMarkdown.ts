@@ -6,56 +6,99 @@ export function formatMarkdownToHtml(text: string): string {
 
   let html = text;
 
-  // First, escape any existing HTML to prevent XSS
-  html = html.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // First, escape any HTML tags to prevent XSS (but not URLs)
+  html = html.replace(/<(?![\/]?a(?:>|\s))/g, '&lt;');
 
-  // Convert headers (must be at start of line)
-  html = html.replace(/^### (.*?)$/gm, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>');
-  html = html.replace(/^## (.*?)$/gm, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>');
-  html = html.replace(/^# (.*?)$/gm, '<h1 class="text-2xl font-bold mt-6 mb-4">$1</h1>');
+  // Convert horizontal rules (---, ***, ___)
+  html = html.replace(/^[\-\*\_]{3,}$/gm, '<hr class="my-6 border-t border-border/50" />');
 
-  // Convert bold text (but not if it's already part of a bullet point marker)
+  // Convert headers with better sizing
+  html = html.replace(/^#### (.*?)$/gm, '<h4 class="text-base font-semibold mt-4 mb-2">$1</h4>');
+  html = html.replace(/^### (.*?)$/gm, '<h3 class="text-lg font-bold mt-6 mb-3">$1</h3>');
+  html = html.replace(/^## (.*?)$/gm, '<h2 class="text-xl font-bold mt-8 mb-4">$1</h2>');
+  html = html.replace(/^# (.*?)$/gm, '<h1 class="text-2xl font-bold mt-8 mb-4">$1</h1>');
+
+  // Convert numbered lists with periods (e.g., "1. Item" or "2. Item")
+  html = html.replace(/^(\d+)\.\s+(.*)$/gm, (_match, num, content) => {
+    return `<div class="flex gap-3 mb-3">
+      <span class="font-semibold text-base shrink-0">${num}.</span>
+      <div class="flex-1">${content}</div>
+    </div>`;
+  });
+
+  // Convert bold text (but not if it's part of URLs or bullet markers)
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold">$1</strong>');
 
   // Convert italic text (single asterisks, but not bullet points)
-  html = html.replace(/(?<!\*)(\*([^*\n]+)\*)(?!\*)/g, '<em>$2</em>');
+  html = html.replace(/(?<![*\n])(\*([^*\n]+)\*)(?!\*)/g, '<em>$2</em>');
 
-  // Handle bullet points more carefully - remove the marker and wrap in proper list items
-  // First, identify consecutive bullet points
+  // Convert URLs to clickable links
+  html = html.replace(
+    /(?:https?:\/\/[^\s<>"]+)/g,
+    '<a href="$&" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300">$&</a>'
+  );
+
+  // Convert email-like patterns to mailto links
+  html = html.replace(
+    /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
+    '<a href="mailto:$1" class="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300">$1</a>'
+  );
+
+  // Handle bullet points with proper indentation
   const lines = html.split('\n');
-  let inList = false;
   let processedLines: string[] = [];
+  let inList = false;
+  let listDepth = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const isBullet = /^[\*\-\•]\s+/.test(line.trim());
+    const trimmedLine = line.trim();
 
-    if (isBullet) {
-      // Remove the bullet marker and any leading spaces
-      const content = line.trim().replace(/^[\*\-\•]\s+/, '');
+    // Check for bullet points with various markers
+    const bulletMatch = trimmedLine.match(/^[\*\-\•]\s+(.*)$/);
 
-      if (!inList) {
-        processedLines.push('<ul class="list-disc list-inside space-y-1 my-2 ml-4">');
+    if (bulletMatch) {
+      const content = bulletMatch[1];
+      // Check indentation level based on original line
+      const indent = line.match(/^\s*/)?.[0].length || 0;
+      const currentDepth = Math.floor(indent / 2);
+
+      if (!inList || currentDepth > listDepth) {
+        processedLines.push('<ul class="list-disc space-y-2 my-3 ml-6">');
         inList = true;
+        listDepth = currentDepth;
+      } else if (currentDepth < listDepth) {
+        // Close nested lists
+        for (let j = listDepth; j > currentDepth; j--) {
+          processedLines.push('</ul>');
+        }
+        listDepth = currentDepth;
       }
-      processedLines.push(`<li>${content}</li>`);
+
+      processedLines.push(`<li class="leading-relaxed">${content}</li>`);
     } else {
-      if (inList) {
-        processedLines.push('</ul>');
+      // Close any open lists
+      if (inList && trimmedLine !== '') {
+        for (let j = listDepth; j >= 0; j--) {
+          processedLines.push('</ul>');
+        }
         inList = false;
+        listDepth = 0;
       }
       processedLines.push(line);
     }
   }
 
-  // Close any open list
+  // Close any remaining open lists
   if (inList) {
-    processedLines.push('</ul>');
+    for (let j = listDepth; j >= 0; j--) {
+      processedLines.push('</ul>');
+    }
   }
 
   html = processedLines.join('\n');
 
-  // Convert line breaks to paragraphs (but not within lists or headers)
+  // Convert line breaks to paragraphs (but not within lists, headers, or hrs)
   const paragraphs = html.split('\n\n');
   html = paragraphs
     .map(p => {
@@ -64,8 +107,8 @@ export function formatMarkdownToHtml(text: string): string {
       if (trimmed.startsWith('<') || trimmed === '') {
         return trimmed;
       }
-      // Don't wrap single line breaks that are within a paragraph
-      return `<p class="mb-3">${trimmed.replace(/\n/g, '<br />')}</p>`;
+      // Add paragraph with proper spacing
+      return `<p class="mb-4 leading-relaxed">${trimmed.replace(/\n/g, '<br />')}</p>`;
     })
     .filter(p => p !== '') // Remove empty paragraphs
     .join('\n');

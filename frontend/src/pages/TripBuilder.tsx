@@ -262,7 +262,6 @@ export default function TripBuilder() {
               isStreaming={isGenerating}
               title={!isGenerating ? "Your Itinerary" : undefined}
               showActions={!isGenerating && !!finalItinerary}
-              className="max-h-[700px] overflow-y-auto"
             />
           )}
 

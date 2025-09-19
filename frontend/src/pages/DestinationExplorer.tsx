@@ -485,29 +485,29 @@ export default function DestinationExplorer() {
 
           {/* Current Search */}
           {isSearching && currentResponse && (
-            <Card className="p-6">
+            <div className="bg-background/50 p-6 rounded-lg">
               <div className="flex items-center gap-2 mb-4">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
                 <span className="text-sm text-muted-foreground">Searching {selectedCity.name}...</span>
               </div>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
+              <div className="travel-content text-base leading-relaxed">
                 <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(currentResponse) }} />
               </div>
-            </Card>
+            </div>
           )}
 
           {/* Search History */}
           {searchHistory.map((result) => (
-            <Card key={result.id} className="p-6">
-              <div className="mb-3 pb-3 border-b">
+            <div key={result.id} className="bg-background/50 p-6 rounded-lg">
+              <div className="mb-4 pb-4 border-b">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">{result.query}</h3>
+                  <h3 className="text-lg font-semibold">{result.query}</h3>
                   <span className="text-xs text-muted-foreground">
                     {new Date(result.timestamp).toLocaleTimeString()}
                   </span>
                 </div>
               </div>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
+              <div className="travel-content text-base leading-relaxed">
                 <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(result.response) }} />
               </div>
 
@@ -535,7 +535,7 @@ export default function DestinationExplorer() {
                   </div>
                 </div>
               )}
-            </Card>
+            </div>
           ))}
 
           {/* Empty State */}
