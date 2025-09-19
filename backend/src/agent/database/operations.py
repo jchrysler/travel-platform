@@ -30,7 +30,7 @@ def create_batch(
         uploaded_filename=uploaded_filename,
         total_articles=len(articles_data),
         default_config=default_config or {},
-        status=BatchStatus.PENDING
+        status=BatchStatus.pending
     )
     
     db.add(batch)
@@ -50,7 +50,7 @@ def create_batch(
             use_apa_style=1 if article_data.get("use_apa_style", False) else 0,
             row_index=idx + 1,
             custom_metadata=article_data.get("custom_metadata", {}),
-            status=ArticleStatus.QUEUED
+            status=ArticleStatus.queued
         )
         db.add(article)
     

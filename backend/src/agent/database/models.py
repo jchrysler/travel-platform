@@ -21,6 +21,13 @@ class BatchStatus(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+    # Also support lowercase attributes for database compatibility
+    pending = "pending"
+    processing = "processing"
+    completed = "completed"
+    failed = "failed"
+    cancelled = "cancelled"
+
 
 class ArticleStatus(str, Enum):
     """Status options for individual articles."""
@@ -29,6 +36,13 @@ class ArticleStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     SKIPPED = "skipped"
+
+    # Also support lowercase attributes for database compatibility
+    queued = "queued"
+    processing = "processing"
+    completed = "completed"
+    failed = "failed"
+    skipped = "skipped"
 
 
 class ArticleBatch(Base):
