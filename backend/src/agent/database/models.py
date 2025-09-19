@@ -46,7 +46,7 @@ class ArticleBatch(Base):
     uploaded_filename = Column(String(255))
     
     # Status tracking
-    status = Column(SQLEnum(BatchStatus), default=BatchStatus.pending, nullable=False)
+    status = Column(SQLEnum(BatchStatus, name='batch_status'), default=BatchStatus.pending, nullable=False)
     total_articles = Column(Integer, default=0)
     completed_articles = Column(Integer, default=0)
     failed_articles = Column(Integer, default=0)
@@ -94,7 +94,7 @@ class BatchArticle(Base):
     use_apa_style = Column(Integer, default=0)
     
     # Processing status
-    status = Column(SQLEnum(ArticleStatus), default=ArticleStatus.queued, nullable=False)
+    status = Column(SQLEnum(ArticleStatus, name='article_status'), default=ArticleStatus.queued, nullable=False)
     processing_attempts = Column(Integer, default=0)
     error_message = Column(Text)
     
