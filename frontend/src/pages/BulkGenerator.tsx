@@ -157,7 +157,7 @@ const BulkGenerator: React.FC = () => {
   };
 
   // Download batch results
-  const downloadBatch = async (batchId: string, format: 'csv' | 'xlsx' | 'json') => {
+  const downloadBatch = async (batchId: string, format: 'csv' | 'xlsx' | 'json' | 'markdown' | 'html' = 'csv') => {
     try {
       const response = await fetch(`${apiUrl}/api/bulk/batch/${batchId}/download?format=${format}`);
       if (response.ok) {
@@ -165,7 +165,9 @@ const BulkGenerator: React.FC = () => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${batchId}.${format}`;
+        // Set appropriate extension based on format
+        const extension = format === 'markdown' || format === 'html' ? 'zip' : format;
+        a.download = `${batchId}.${extension}`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -396,13 +398,20 @@ const BulkGenerator: React.FC = () => {
                           View
                         </Button>
                         {batch.status === 'completed' && batch.completed_articles > 0 && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => downloadBatch(batch.batch_id, 'csv')}
-                          >
-                            <Download className="w-3 h-3" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <select
+                              className="text-xs border rounded px-2 py-1"
+                              onChange={(e) => downloadBatch(batch.batch_id, e.target.value as any)}
+                              defaultValue=""
+                            >
+                              <option value="" disabled>Download...</option>
+                              <option value="csv">CSV</option>
+                              <option value="xlsx">Excel</option>
+                              <option value="json">JSON</option>
+                              <option value="markdown">Markdown (ZIP)</option>
+                              <option value="html">HTML (ZIP)</option>
+                            </select>
+                          </div>
                         )}
                         {(batch.status === 'pending' || batch.status === 'processing') && (
                           <Button

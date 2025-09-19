@@ -1,5 +1,9 @@
 # mypy: disable - error - code = "no-untyped-def,misc"
 import pathlib
+import asyncio
+import logging
+import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -10,9 +14,48 @@ from agent.graph import graph
 from agent.improve_graph import improve_graph
 from agent.travel_api import create_travel_routes
 from agent.bulk_api import router as bulk_router
+from agent.bulk_processor import BulkArticleProcessor
 
-# Define the FastAPI app
-app = FastAPI()
+logger = logging.getLogger(__name__)
+
+# Background processor instance
+processor = None
+processor_task = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage app lifecycle - start/stop background processor."""
+    global processor, processor_task
+
+    # Determine LangGraph URL based on environment
+    langgraph_url = os.getenv("LANGGRAPH_URL", "http://localhost:8123")
+    if os.getenv("RAILWAY_ENVIRONMENT"):
+        # In production (Railway), use local connection
+        langgraph_url = "http://localhost:8123"
+
+    # Start the bulk processor
+    processor = BulkArticleProcessor(langgraph_url=langgraph_url)
+    await processor.start()
+
+    # Start processing queue in background
+    processor_task = asyncio.create_task(processor.process_queue())
+    logger.info(f"Bulk processor started with LangGraph URL: {langgraph_url}")
+
+    yield
+
+    # Shutdown processor
+    if processor:
+        await processor.stop()
+    if processor_task:
+        processor_task.cancel()
+        try:
+            await processor_task
+        except asyncio.CancelledError:
+            pass
+    logger.info("Bulk processor stopped")
+
+# Define the FastAPI app with lifespan
+app = FastAPI(lifespan=lifespan)
 
 # Note: Database tables are created manually via SQL script
 # The production database tables have been created and are ready to use
