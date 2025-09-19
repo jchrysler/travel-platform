@@ -55,22 +55,26 @@ def get_keyword_instructions(keywords: str) -> str:
 def get_citation_instructions(use_inline_links: bool, use_apa_style: bool, link_count: int) -> str:
     """Generate citation instructions based on selected link styles."""
     instructions = []
-    
+
     if use_inline_links:
-        instructions.append(f"- Naturally embed {link_count} hyperlinks throughout the article")
-        instructions.append("- Link relevant keywords, statistics, and claims to their sources")
+        instructions.append(f"\nCITATION FORMAT:")
+        instructions.append(f"- Include exactly {link_count} inline hyperlinks in the article")
+        instructions.append("- Use proper markdown link format: [descriptive text](URL)")
+        instructions.append("- Example: According to [recent research by MIT](https://example.com), electric vehicles...")
+        instructions.append("- Link relevant keywords, statistics, brand names, and claims to sources")
         instructions.append("- Distribute links evenly throughout the article")
         instructions.append("- Choose the most authoritative sources from your research")
-    
+        instructions.append("- DO NOT just put bare URLs - always use [text](url) format")
+
     if use_apa_style:
         instructions.append("\n## References")
         instructions.append("- Add a 'References' section at the end")
         instructions.append("- List sources in a clean, numbered format")
         instructions.append("- Format: [1] Source Title - URL")
-    
+
     if not use_inline_links and not use_apa_style:
         instructions.append("- Do not include any citations or source links")
-    
+
     return "\n".join(instructions)
 
 
@@ -299,10 +303,12 @@ Your task:
 
 Format the improved content with:
 - Clear structure and headings
-- Inline citations where claims are made
+- Inline citations using markdown format: [descriptive text](URL)
+- Example: According to [a Harvard study](https://example.com), meditation improves focus
 - Natural keyword integration
 - Evidence-based statements
 - Compliance-friendly language
+- ALWAYS use [text](url) format for links, never bare URLs
 
 {citation_instructions}
 
