@@ -84,6 +84,7 @@ class BulkArticleProcessor:
                             "id": str(int(datetime.now().timestamp() * 1000))
                         }
                     ],
+                    "reasoning_model": "gemini-2.0-flash-exp",  # Default model
                     "article_tone": article_data.get("tone", "professional"),
                     "word_count": article_data.get("word_count", 1000),
                     "keywords": article_data.get("keywords", ""),
@@ -132,6 +133,7 @@ class BulkArticleProcessor:
                             "id": str(int(datetime.now().timestamp() * 1000))
                         }
                     ],
+                    "reasoning_model": "gemini-2.0-flash-exp",  # Default model
                     "article_tone": article_data.get("tone", "professional"),
                     "word_count": article_data.get("word_count", 1000),
                     "keywords": article_data.get("keywords", ""),
