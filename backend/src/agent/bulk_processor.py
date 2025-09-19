@@ -1,0 +1,263 @@
+"""Bulk article processor service."""
+
+import asyncio
+import json
+import logging
+from datetime import datetime
+from typing import Dict, Any, Optional
+from langgraph_sdk import get_client
+from sqlalchemy.orm import Session
+
+from .database import SessionLocal
+from .database.models import BatchStatus, ArticleStatus
+from .database.operations import (
+    get_next_queued_article,
+    update_article_status,
+    update_batch_status,
+    get_batch
+)
+
+logger = logging.getLogger(__name__)
+
+
+class BulkArticleProcessor:
+    """Process articles in bulk using the existing LangGraph agent."""
+    
+    def __init__(self, langgraph_url: str = "http://localhost:2024"):
+        """Initialize the bulk processor.
+        
+        Args:
+            langgraph_url: URL of the LangGraph API server
+        """
+        self.langgraph_url = langgraph_url
+        self.client = None
+        self.processing = False
+        self.current_batch_id = None
+    
+    async def start(self):
+        """Start the processor and connect to LangGraph."""
+        self.client = get_client(url=self.langgraph_url)
+        self.processing = True
+        logger.info(f"Bulk processor started, connected to {self.langgraph_url}")
+    
+    async def stop(self):
+        """Stop the processor."""
+        self.processing = False
+        if self.client:
+            await self.client.close()
+        logger.info("Bulk processor stopped")
+    
+    async def process_article(self, article_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process a single article using the LangGraph agent.
+        
+        Args:
+            article_data: Article parameters (topic, keywords, tone, etc.)
+            
+        Returns:
+            Generated article content
+        """
+        try:
+            # Prepare input for the LangGraph agent
+            # Use the same format as the single article generator
+            agent_input = {
+                "research_topic": article_data["topic"],
+                "article_tone": article_data.get("tone", "professional"),
+                "word_count": article_data.get("word_count", 1000),
+                "keywords": article_data.get("keywords", ""),
+                "custom_persona": article_data.get("custom_persona", ""),
+                "link_count": article_data.get("link_count", 5),
+                "use_inline_links": article_data.get("use_inline_links", True),
+                "use_apa_style": article_data.get("use_apa_style", False),
+                "initial_search_query_count": 2,  # Medium effort
+                "max_research_loops": 2
+            }
+            
+            # Create a thread and run the agent
+            assistant = self.client.assistants.search(graph_id="agent")[0]
+            thread = await self.client.threads.create()
+            
+            # Stream the agent execution
+            final_content = None
+            async for chunk in self.client.runs.stream(
+                thread["thread_id"],
+                assistant["assistant_id"],
+                input=agent_input,
+                stream_mode="updates"
+            ):
+                # Capture the final answer
+                if chunk.data and isinstance(chunk.data, list):
+                    for item in chunk.data:
+                        if isinstance(item, dict) and "answer" in item:
+                            final_content = item["answer"]
+            
+            if not final_content:
+                raise ValueError("No content generated")
+            
+            # Parse the generated content to extract title and body
+            lines = final_content.strip().split('\n')
+            title = ""
+            content = final_content
+            
+            # Extract title if it starts with #
+            if lines and lines[0].startswith('#'):
+                title = lines[0].replace('#', '').strip()
+                content = '\n'.join(lines[1:]).strip()
+            
+            # Count actual words
+            word_count = len(content.split())
+            
+            return {
+                "title": title,
+                "content": content,
+                "meta_description": f"{title[:150]}..." if title else "",
+                "word_count": word_count,
+                "success": True
+            }
+            
+        except Exception as e:
+            logger.error(f"Error processing article: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def process_batch(self, batch_id: str):
+        """Process all articles in a batch.
+        
+        Args:
+            batch_id: Batch identifier
+        """
+        db = SessionLocal()
+        try:
+            # Get the batch
+            batch = get_batch(db, batch_id)
+            if not batch:
+                logger.error(f"Batch {batch_id} not found")
+                return
+            
+            # Update batch status to processing
+            batch = update_batch_status(db, batch.id, BatchStatus.PROCESSING)
+            logger.info(f"Starting batch {batch_id} with {batch.total_articles} articles")
+            
+            self.current_batch_id = batch.id
+            
+            # Process articles one by one
+            while self.processing:
+                # Get next queued article
+                article = get_next_queued_article(db, batch.id)
+                if not article:
+                    # No more articles to process
+                    break
+                
+                logger.info(f"Processing article {article.id}: {article.topic}")
+                
+                # Update article status to processing
+                article = update_article_status(
+                    db, article.id, ArticleStatus.PROCESSING
+                )
+                
+                # Process the article
+                start_time = datetime.utcnow()
+                result = await self.process_article({
+                    "topic": article.topic,
+                    "keywords": article.keywords,
+                    "tone": article.tone,
+                    "word_count": article.word_count,
+                    "custom_persona": article.custom_persona,
+                    "link_count": article.link_count,
+                    "use_inline_links": bool(article.use_inline_links),
+                    "use_apa_style": bool(article.use_apa_style)
+                })
+                
+                # Update article with results
+                if result["success"]:
+                    article = update_article_status(
+                        db,
+                        article.id,
+                        ArticleStatus.COMPLETED,
+                        generated_content=result
+                    )
+                    logger.info(f"Article {article.id} completed successfully")
+                else:
+                    article = update_article_status(
+                        db,
+                        article.id,
+                        ArticleStatus.FAILED,
+                        error_message=result.get("error", "Unknown error")
+                    )
+                    logger.error(f"Article {article.id} failed: {result.get('error')}")
+                
+                # Small delay between articles to avoid overwhelming the API
+                await asyncio.sleep(2)
+            
+            # Check if all articles are processed
+            db.refresh(batch)
+            if batch.completed_articles + batch.failed_articles >= batch.total_articles:
+                # Batch is complete
+                final_status = BatchStatus.COMPLETED if batch.failed_articles == 0 else BatchStatus.COMPLETED
+                batch = update_batch_status(db, batch.id, final_status)
+                logger.info(
+                    f"Batch {batch_id} completed: "
+                    f"{batch.completed_articles} successful, "
+                    f"{batch.failed_articles} failed"
+                )
+            
+        except Exception as e:
+            logger.error(f"Error processing batch {batch_id}: {str(e)}")
+            if batch:
+                update_batch_status(
+                    db, batch.id, BatchStatus.FAILED, error_message=str(e)
+                )
+        finally:
+            db.close()
+            self.current_batch_id = None
+    
+    async def process_queue(self):
+        """Process batches from the queue continuously."""
+        while self.processing:
+            db = SessionLocal()
+            try:
+                # Find the next pending batch
+                from sqlalchemy import and_
+                from .database.models import ArticleBatch
+                
+                batch = db.query(ArticleBatch).filter(
+                    ArticleBatch.status == BatchStatus.PENDING
+                ).order_by(ArticleBatch.created_at).first()
+                
+                if batch:
+                    logger.info(f"Found pending batch: {batch.batch_id}")
+                    await self.process_batch(batch.batch_id)
+                else:
+                    # No batches to process, wait
+                    await asyncio.sleep(10)
+                    
+            except Exception as e:
+                logger.error(f"Error in queue processor: {str(e)}")
+                await asyncio.sleep(10)
+            finally:
+                db.close()
+
+
+async def run_bulk_processor():
+    """Run the bulk processor as a standalone service."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    processor = BulkArticleProcessor()
+    
+    try:
+        await processor.start()
+        logger.info("Bulk processor service started")
+        await processor.process_queue()
+    except KeyboardInterrupt:
+        logger.info("Shutting down bulk processor...")
+    finally:
+        await processor.stop()
+
+
+if __name__ == "__main__":
+    # Run the processor
+    asyncio.run(run_bulk_processor())

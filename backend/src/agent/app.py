@@ -9,6 +9,7 @@ from langchain_core.runnables import RunnableConfig
 from agent.graph import graph
 from agent.improve_graph import improve_graph
 from agent.travel_api import create_travel_routes
+from agent.bulk_api import router as bulk_router
 
 # Define the FastAPI app
 app = FastAPI()
@@ -24,6 +25,9 @@ app.add_middleware(
 
 # Add travel routes
 app = create_travel_routes(app)
+
+# Add bulk processing routes
+app.include_router(bulk_router)
 
 # Redirect root to /app
 @app.get("/")

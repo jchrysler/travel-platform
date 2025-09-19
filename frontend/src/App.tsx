@@ -3,6 +3,7 @@ import { ThemeProvider } from "@/lib/theme-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import ArticleGenerator from "@/pages/ArticleGenerator";
 import ContentImprover from "@/pages/ContentImprover";
+import BulkGenerator from "@/pages/BulkGenerator";
 import TravelHub from "@/pages/TravelHub";
 import TripBuilder from "@/pages/TripBuilder";
 import DestinationExplorer from "@/pages/DestinationExplorer";
@@ -18,6 +19,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<ArticleGenerator />} />
           <Route path="/c" element={<ContentImprover />} />
+          <Route path="/bulk" element={<BulkGenerator />} />
           <Route path="/travel" element={<TravelHub />} />
           <Route path="/travel/trip" element={<TripBuilder />} />
           <Route path="/travel/explore" element={<DestinationExplorer />} />
