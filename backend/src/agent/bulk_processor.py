@@ -73,9 +73,17 @@ class BulkArticleProcessor:
                 logger.info(f"Processing article in PRODUCTION mode: {article_data['topic']}")
                 from langchain_core.runnables import RunnableConfig
                 from agent.graph import graph
+                from datetime import datetime
 
+                # Use same input format as the frontend
                 agent_input = {
-                    "research_topic": article_data["topic"],
+                    "messages": [
+                        {
+                            "type": "human",
+                            "content": article_data["topic"],
+                            "id": str(int(datetime.now().timestamp() * 1000))
+                        }
+                    ],
                     "article_tone": article_data.get("tone", "professional"),
                     "word_count": article_data.get("word_count", 1000),
                     "keywords": article_data.get("keywords", ""),
@@ -90,25 +98,40 @@ class BulkArticleProcessor:
                 config = RunnableConfig()
                 result = await graph.ainvoke(agent_input, config=config)
 
+                # Log the result structure for debugging
+                logger.info(f"Graph result keys: {result.keys() if result else 'None'}")
+
                 # Extract content from messages (graph returns AIMessage objects)
                 final_content = ""
-                if "messages" in result and result["messages"]:
+                if result and "messages" in result and result["messages"]:
                     # Get the last message content
                     last_message = result["messages"][-1]
                     if hasattr(last_message, 'content'):
                         final_content = last_message.content
                     else:
                         final_content = str(last_message)
+                    logger.info(f"Extracted content from message type: {type(last_message).__name__}")
+                else:
+                    logger.error(f"No messages in result. Result: {result}")
 
-                logger.info(f"Article processed successfully in production: {article_data['topic']}, content length: {len(final_content)}")
+                logger.info(f"Article processed in production: {article_data['topic']}, content length: {len(final_content)}")
             else:
                 # Use LangGraph SDK for local development
                 if not self.client:
                     raise ValueError("LangGraph client not initialized for local mode")
 
                 logger.info(f"Processing article in LOCAL mode: {article_data['topic']}")
+                from datetime import datetime
+
+                # Use same input format as production
                 agent_input = {
-                    "research_topic": article_data["topic"],
+                    "messages": [
+                        {
+                            "type": "human",
+                            "content": article_data["topic"],
+                            "id": str(int(datetime.now().timestamp() * 1000))
+                        }
+                    ],
                     "article_tone": article_data.get("tone", "professional"),
                     "word_count": article_data.get("word_count", 1000),
                     "keywords": article_data.get("keywords", ""),
@@ -133,11 +156,17 @@ class BulkArticleProcessor:
                     input=agent_input,
                     stream_mode="updates"
                 ):
-                    # Capture the final answer
-                    if chunk.data and isinstance(chunk.data, list):
-                        for item in chunk.data:
-                            if isinstance(item, dict) and "answer" in item:
-                                final_content = item["answer"]
+                    # Capture the final content from messages
+                    if chunk.data:
+                        # Check for messages in the chunk data
+                        if isinstance(chunk.data, dict) and "messages" in chunk.data:
+                            messages = chunk.data["messages"]
+                            if messages and len(messages) > 0:
+                                last_msg = messages[-1]
+                                if hasattr(last_msg, 'content'):
+                                    final_content = last_msg.content
+                                elif isinstance(last_msg, dict) and "content" in last_msg:
+                                    final_content = last_msg["content"]
             
             if not final_content:
                 raise ValueError("No content generated")
