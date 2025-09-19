@@ -73,7 +73,8 @@ class BulkArticleProcessor:
             }
             
             # Create a thread and run the agent
-            assistant = self.client.assistants.search(graph_id="agent")[0]
+            assistants = await self.client.assistants.search(graph_id="agent")
+            assistant = assistants[0]
             thread = await self.client.threads.create()
             
             # Stream the agent execution
