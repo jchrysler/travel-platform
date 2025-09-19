@@ -179,6 +179,7 @@ export default function DestinationExplorer() {
   const [searchHistory, setSearchHistory] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [currentResponse, setCurrentResponse] = useState("");
+  const [showAds, setShowAds] = useState(false);
 
   const categories = [
     { id: "food", name: "Food" },
@@ -209,6 +210,7 @@ export default function DestinationExplorer() {
 
     setIsSearching(true);
     setCurrentResponse("");
+    setShowAds(true); // Show ads immediately when search starts
 
     try {
       const response = await fetch("/api/travel/explore", {
@@ -413,21 +415,8 @@ export default function DestinationExplorer() {
 
         {/* Results Section */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Current Search */}
-          {isSearching && currentResponse && (
-            <Card className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-                <span className="text-sm text-muted-foreground">Searching {selectedCity.name}...</span>
-              </div>
-              <div className="prose prose-sm max-w-none">
-                <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(currentResponse) }} />
-              </div>
-            </Card>
-          )}
-
-          {/* Google-style Ad Block */}
-          {searchHistory.length > 0 && !isSearching && (
+          {/* Google-style Ad Block - Show immediately when searching or after results */}
+          {(showAds || searchHistory.length > 0) && (
             <Card className="p-4 bg-slate-50/50 dark:bg-slate-900/20 border">
               <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
                 <Globe className="w-3 h-3" />
@@ -494,6 +483,19 @@ export default function DestinationExplorer() {
             </Card>
           )}
 
+          {/* Current Search */}
+          {isSearching && currentResponse && (
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
+                <span className="text-sm text-muted-foreground">Searching {selectedCity.name}...</span>
+              </div>
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(currentResponse) }} />
+              </div>
+            </Card>
+          )}
+
           {/* Search History */}
           {searchHistory.map((result) => (
             <Card key={result.id} className="p-6">
@@ -505,7 +507,7 @@ export default function DestinationExplorer() {
                   </span>
                 </div>
               </div>
-              <div className="prose prose-sm max-w-none">
+              <div className="prose prose-sm max-w-none dark:prose-invert">
                 <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(result.response) }} />
               </div>
 

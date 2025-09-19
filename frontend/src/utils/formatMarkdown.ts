@@ -6,45 +6,69 @@ export function formatMarkdownToHtml(text: string): string {
 
   let html = text;
 
-  // Convert headers
+  // First, escape any existing HTML to prevent XSS
+  html = html.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  // Convert headers (must be at start of line)
   html = html.replace(/^### (.*?)$/gm, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>');
   html = html.replace(/^## (.*?)$/gm, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>');
   html = html.replace(/^# (.*?)$/gm, '<h1 class="text-2xl font-bold mt-6 mb-4">$1</h1>');
 
-  // Convert bold text
-  html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+  // Convert bold text (but not if it's already part of a bullet point marker)
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold">$1</strong>');
 
-  // Convert italic text
-  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  // Convert italic text (single asterisks, but not bullet points)
+  html = html.replace(/(?<!\*)(\*([^*\n]+)\*)(?!\*)/g, '<em>$2</em>');
 
-  // Convert bullet points
-  html = html.replace(/^\* (.*?)$/gm, '<li class="ml-4 mb-1">• $1</li>');
-  html = html.replace(/^- (.*?)$/gm, '<li class="ml-4 mb-1">• $1</li>');
+  // Handle bullet points more carefully - remove the marker and wrap in proper list items
+  // First, identify consecutive bullet points
+  const lines = html.split('\n');
+  let inList = false;
+  let processedLines: string[] = [];
 
-  // Wrap consecutive list items in ul
-  html = html.replace(/(<li.*?<\/li>\n?)+/g, (match) => {
-    return `<ul class="space-y-1 my-2">${match}</ul>`;
-  });
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const isBullet = /^[\*\-\•]\s+/.test(line.trim());
 
-  // Convert line breaks to paragraphs
+    if (isBullet) {
+      // Remove the bullet marker and any leading spaces
+      const content = line.trim().replace(/^[\*\-\•]\s+/, '');
+
+      if (!inList) {
+        processedLines.push('<ul class="list-disc list-inside space-y-1 my-2 ml-4">');
+        inList = true;
+      }
+      processedLines.push(`<li>${content}</li>`);
+    } else {
+      if (inList) {
+        processedLines.push('</ul>');
+        inList = false;
+      }
+      processedLines.push(line);
+    }
+  }
+
+  // Close any open list
+  if (inList) {
+    processedLines.push('</ul>');
+  }
+
+  html = processedLines.join('\n');
+
+  // Convert line breaks to paragraphs (but not within lists or headers)
   const paragraphs = html.split('\n\n');
   html = paragraphs
     .map(p => {
-      // Don't wrap if it's already an HTML element
-      if (p.trim().startsWith('<')) {
-        return p;
+      const trimmed = p.trim();
+      // Don't wrap if it's already an HTML element or empty
+      if (trimmed.startsWith('<') || trimmed === '') {
+        return trimmed;
       }
-      // Don't wrap empty lines
-      if (p.trim() === '') {
-        return '';
-      }
-      // Wrap in paragraph
-      return `<p class="mb-3">${p}</p>`;
+      // Don't wrap single line breaks that are within a paragraph
+      return `<p class="mb-3">${trimmed.replace(/\n/g, '<br />')}</p>`;
     })
-    .join('');
-
-  // Convert single line breaks to <br> within paragraphs
-  html = html.replace(/\n/g, '<br />');
+    .filter(p => p !== '') // Remove empty paragraphs
+    .join('\n');
 
   return html;
 }
