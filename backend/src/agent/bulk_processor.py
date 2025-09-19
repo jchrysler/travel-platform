@@ -89,8 +89,18 @@ class BulkArticleProcessor:
 
                 config = RunnableConfig()
                 result = await graph.ainvoke(agent_input, config=config)
-                final_content = result.get("answer", "")
-                logger.info(f"Article processed successfully in production: {article_data['topic']}")
+
+                # Extract content from messages (graph returns AIMessage objects)
+                final_content = ""
+                if "messages" in result and result["messages"]:
+                    # Get the last message content
+                    last_message = result["messages"][-1]
+                    if hasattr(last_message, 'content'):
+                        final_content = last_message.content
+                    else:
+                        final_content = str(last_message)
+
+                logger.info(f"Article processed successfully in production: {article_data['topic']}, content length: {len(final_content)}")
             else:
                 # Use LangGraph SDK for local development
                 if not self.client:
