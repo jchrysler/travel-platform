@@ -30,6 +30,7 @@ async def upload_batch(
     file: UploadFile = File(...),
     name: Optional[str] = None,
     description: Optional[str] = None,
+    model: Optional[str] = "gemini-2.5-flash-lite",
     user_id: str = "default_user",  # In production, get from auth
     db: Session = Depends(get_db)
 ):
@@ -114,7 +115,8 @@ async def upload_batch(
             name=name or file.filename,
             articles_data=articles_data,
             description=description,
-            uploaded_filename=file.filename
+            uploaded_filename=file.filename,
+            default_config={'model': model}
         )
         
         return {

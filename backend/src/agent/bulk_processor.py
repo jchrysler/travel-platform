@@ -84,7 +84,7 @@ class BulkArticleProcessor:
                             "id": str(int(datetime.now().timestamp() * 1000))
                         }
                     ],
-                    "reasoning_model": "gemini-2.0-flash-exp",  # Default model
+                    "reasoning_model": article_data.get("model", "gemini-2.5-flash-lite"),
                     "article_tone": article_data.get("tone", "professional"),
                     "word_count": article_data.get("word_count", 1000),
                     "keywords": article_data.get("keywords", ""),
@@ -133,7 +133,7 @@ class BulkArticleProcessor:
                             "id": str(int(datetime.now().timestamp() * 1000))
                         }
                     ],
-                    "reasoning_model": "gemini-2.0-flash-exp",  # Default model
+                    "reasoning_model": article_data.get("model", "gemini-2.5-flash-lite"),
                     "article_tone": article_data.get("tone", "professional"),
                     "word_count": article_data.get("word_count", 1000),
                     "keywords": article_data.get("keywords", ""),
@@ -238,6 +238,12 @@ class BulkArticleProcessor:
                 
                 # Process the article
                 start_time = datetime.utcnow()
+
+                # Get model from batch config or use default
+                model = "gemini-2.5-flash-lite"
+                if batch.default_config and isinstance(batch.default_config, dict):
+                    model = batch.default_config.get('model', model)
+
                 result = await self.process_article({
                     "topic": article.topic,
                     "keywords": article.keywords,
@@ -246,7 +252,8 @@ class BulkArticleProcessor:
                     "custom_persona": article.custom_persona,
                     "link_count": article.link_count,
                     "use_inline_links": bool(article.use_inline_links),
-                    "use_apa_style": bool(article.use_apa_style)
+                    "use_apa_style": bool(article.use_apa_style),
+                    "model": model
                 })
                 
                 # Update article with results
