@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Upload, Download, FileText, AlertCircle, CheckCircle, Clock, X, RefreshCw, Loader2, Copy, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -700,7 +700,7 @@ const BulkGenerator: React.FC = () => {
                   <div
                     className="prose prose-lg max-w-none dark:prose-invert"
                     dangerouslySetInnerHTML={{
-                      __html: useMemo(() => {
+                      __html: (() => {
                         const convertMarkdownToHtml = (text: string) => {
                           let html = text;
                           // Convert headers
@@ -727,7 +727,7 @@ const BulkGenerator: React.FC = () => {
                         };
 
                         return `<h1 style="font-size: 2em; font-weight: bold; margin-bottom: 0.5em;">${selectedArticle.title}</h1>\n${convertMarkdownToHtml(selectedArticle.content)}`;
-                      }, [selectedArticle])
+                      })()
                     }}
                   />
                 </div>
