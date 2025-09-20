@@ -230,13 +230,67 @@ const BulkGenerator: React.FC = () => {
   };
 
   // Copy article to clipboard
-  const copyToClipboard = () => {
+  const copyToClipboard = async () => {
     if (!selectedArticle) return;
 
-    // Format for Google Docs - include title and content
-    const formattedContent = `${selectedArticle.title}\n\n${selectedArticle.content}`;
+    // Convert markdown to HTML for Google Docs
+    const convertMarkdownToHtml = (text: string) => {
+      let html = text;
 
-    navigator.clipboard.writeText(formattedContent).then(() => {
+      // Convert headers
+      html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+      html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+      html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+      // Convert bold
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+      // Convert italic
+      html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+      // Convert links [text](url) to <a href="url">text</a>
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+      // Convert bullet points
+      html = html.replace(/^\* (.+)$/gim, '<li>$1</li>');
+      // Wrap consecutive <li> tags in <ul>
+      html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => '<ul>' + match + '</ul>');
+
+      // Convert paragraphs
+      html = html.split('\n\n').map(para => {
+        if (para.startsWith('<h') || para.startsWith('<ul>')) {
+          return para;
+        }
+        return para ? `<p>${para}</p>` : '';
+      }).join('\n');
+
+      // Clean up any remaining newlines within paragraphs
+      html = html.replace(/<p>\n/g, '<p>');
+      html = html.replace(/\n<\/p>/g, '</p>');
+
+      return html;
+    };
+
+    const htmlContent = `
+      <h1>${selectedArticle.title}</h1>
+      ${convertMarkdownToHtml(selectedArticle.content)}
+    `;
+
+    // Plain text fallback
+    const plainText = `${selectedArticle.title}\n\n${selectedArticle.content}`;
+
+    try {
+      // Try to copy as HTML for proper formatting in Google Docs
+      const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+      const textBlob = new Blob([plainText], { type: 'text/plain' });
+
+      const clipboardItem = new ClipboardItem({
+        'text/html': htmlBlob,
+        'text/plain': textBlob
+      });
+
+      await navigator.clipboard.write([clipboardItem]);
+
       // Show success message with better UX
       const button = document.activeElement as HTMLButtonElement;
       if (button && button.textContent) {
@@ -248,10 +302,25 @@ const BulkGenerator: React.FC = () => {
           button.disabled = false;
         }, 2000);
       }
-    }).catch(err => {
-      console.error('Failed to copy:', err);
-      alert('Failed to copy to clipboard. Please try selecting and copying manually.');
-    });
+    } catch (err) {
+      // Fallback to plain text if HTML copy fails
+      try {
+        await navigator.clipboard.writeText(plainText);
+        const button = document.activeElement as HTMLButtonElement;
+        if (button && button.textContent) {
+          const originalText = button.textContent;
+          button.textContent = '✓ Copied!';
+          button.disabled = true;
+          setTimeout(() => {
+            button.textContent = originalText;
+            button.disabled = false;
+          }, 2000);
+        }
+      } catch (fallbackErr) {
+        console.error('Failed to copy:', fallbackErr);
+        alert('Failed to copy to clipboard. Please try selecting and copying manually.');
+      }
+    }
   };
 
   // View batch details
