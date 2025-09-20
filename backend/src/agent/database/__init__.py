@@ -1,12 +1,14 @@
 """Database package for bulk article processing."""
 
-from .config import get_db, engine, SessionLocal
+from .config import engine, SessionLocal, Base, get_db, init_db
 from .models import ArticleBatch, BatchArticle, ProcessingLog, BatchStatus, ArticleStatus
 
 __all__ = [
-    "get_db",
     "engine",
     "SessionLocal",
+    "Base",
+    "get_db",
+    "init_db",
     "ArticleBatch",
     "BatchArticle",
     "ProcessingLog",

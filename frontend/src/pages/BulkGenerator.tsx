@@ -237,10 +237,20 @@ const BulkGenerator: React.FC = () => {
     const formattedContent = `${selectedArticle.title}\n\n${selectedArticle.content}`;
 
     navigator.clipboard.writeText(formattedContent).then(() => {
-      // Show success message
-      alert('Article copied to clipboard!');
+      // Show success message with better UX
+      const button = document.activeElement as HTMLButtonElement;
+      if (button && button.textContent) {
+        const originalText = button.textContent;
+        button.textContent = '✓ Copied!';
+        button.disabled = true;
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.disabled = false;
+        }, 2000);
+      }
     }).catch(err => {
       console.error('Failed to copy:', err);
+      alert('Failed to copy to clipboard. Please try selecting and copying manually.');
     });
   };
 
@@ -430,20 +440,14 @@ const BulkGenerator: React.FC = () => {
                           View
                         </Button>
                         {batch.status === 'completed' && batch.completed_articles > 0 && (
-                          <div className="flex gap-1">
-                            <select
-                              className="text-xs border rounded px-2 py-1"
-                              onChange={(e) => downloadBatch(batch.batch_id, e.target.value as any)}
-                              defaultValue=""
-                            >
-                              <option value="" disabled>Download...</option>
-                              <option value="csv">CSV</option>
-                              <option value="xlsx">Excel</option>
-                              <option value="json">JSON</option>
-                              <option value="markdown">Markdown (ZIP)</option>
-                              <option value="html">HTML (ZIP)</option>
-                            </select>
-                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => downloadBatch(batch.batch_id, 'csv')}
+                          >
+                            <Download className="w-3 h-3 mr-1" />
+                            Export
+                          </Button>
                         )}
                         {(batch.status === 'pending' || batch.status === 'processing') && (
                           <Button
@@ -533,19 +537,20 @@ const BulkGenerator: React.FC = () => {
               )}
 
               {batchDetails.status === 'completed' && batchDetails.completed_articles > 0 && (
-                <div className="flex gap-2">
-                  <Button onClick={() => downloadBatch(batchDetails.batch_id, 'csv')}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Download CSV
-                  </Button>
-                  <Button onClick={() => downloadBatch(batchDetails.batch_id, 'xlsx')} variant="outline">
-                    <Download className="w-4 h-4 mr-2" />
-                    Download Excel
-                  </Button>
-                  <Button onClick={() => downloadBatch(batchDetails.batch_id, 'json')} variant="outline">
-                    <Download className="w-4 h-4 mr-2" />
-                    Download JSON
-                  </Button>
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    Export all articles for backup or external use:
+                  </p>
+                  <div className="flex gap-2">
+                    <Button onClick={() => downloadBatch(batchDetails.batch_id, 'csv')} variant="outline" size="sm">
+                      <Download className="w-3 h-3 mr-1" />
+                      CSV
+                    </Button>
+                    <Button onClick={() => downloadBatch(batchDetails.batch_id, 'xlsx')} variant="outline" size="sm">
+                      <Download className="w-3 h-3 mr-1" />
+                      Excel
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -555,39 +560,61 @@ const BulkGenerator: React.FC = () => {
 
       {/* Article Viewer Modal */}
       <Dialog open={showArticleModal} onOpenChange={setShowArticleModal}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{selectedArticle?.title || 'Article'}</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">
+              Article Ready to Copy
+            </DialogTitle>
             <DialogDescription>
-              <div className="flex gap-4 text-sm text-gray-600">
-                <span>Topic: {selectedArticle?.topic}</span>
-                <span>Words: {selectedArticle?.word_count}</span>
-                <span>Tone: {selectedArticle?.tone}</span>
+              <div className="flex items-center gap-4 text-sm">
+                <span className="text-gray-600">Topic: {selectedArticle?.topic}</span>
+                <Badge variant="secondary">{selectedArticle?.word_count} words</Badge>
+                <Badge variant="outline">{selectedArticle?.tone}</Badge>
               </div>
             </DialogDescription>
           </DialogHeader>
 
           {selectedArticle && (
             <div className="space-y-4">
-              {/* Copy button */}
-              <div className="flex justify-end">
-                <Button onClick={copyToClipboard}>
-                  <Copy className="w-4 h-4 mr-2" />
-                  Copy Article
-                </Button>
+              {/* Quick Copy Section */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      Ready to paste into Google Docs
+                    </p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                      Click "Copy Article" then paste directly into your document
+                    </p>
+                  </div>
+                  <Button
+                    onClick={copyToClipboard}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy Article
+                  </Button>
+                </div>
               </div>
 
-              {/* Article content */}
-              <div className="prose max-w-none">
-                <div className="border rounded-lg p-6 bg-white">
-                  <h1 className="text-2xl font-bold mb-4">{selectedArticle.title}</h1>
-                  <div className="whitespace-pre-wrap">{selectedArticle.content}</div>
+              {/* Article Preview */}
+              <div className="border rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                <div className="border-b px-4 py-2 bg-white dark:bg-gray-800">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">ARTICLE PREVIEW</span>
+                </div>
+                <div className="p-6 bg-white dark:bg-gray-900 font-serif">
+                  <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-gray-100">
+                    {selectedArticle.title}
+                  </h1>
+                  <div className="prose prose-lg max-w-none dark:prose-invert whitespace-pre-wrap leading-relaxed text-gray-700 dark:text-gray-300">
+                    {selectedArticle.content}
+                  </div>
                 </div>
               </div>
 
               {/* Keywords if present */}
               {selectedArticle.keywords && (
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded p-3">
                   <strong>Keywords:</strong> {selectedArticle.keywords}
                 </div>
               )}
@@ -598,7 +625,10 @@ const BulkGenerator: React.FC = () => {
             <Button variant="outline" onClick={() => setShowArticleModal(false)}>
               Close
             </Button>
-            <Button onClick={copyToClipboard}>
+            <Button
+              onClick={copyToClipboard}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
               <Copy className="w-4 h-4 mr-2" />
               Copy to Clipboard
             </Button>

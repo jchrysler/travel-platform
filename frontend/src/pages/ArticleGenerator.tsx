@@ -1,11 +1,12 @@
 import { useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { ArticleViewer } from "@/components/ArticleViewer";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { RefreshCw, Sparkles } from "lucide-react";
+import { RefreshCw, Sparkles, Database, ArrowRight } from "lucide-react";
 
 export default function ArticleGenerator() {
   const [prompt, setPrompt] = useState("");
@@ -347,14 +348,49 @@ export default function ArticleGenerator() {
             onReset={handleReset}
           />
         ) : (
-          <Card className="p-12 text-center text-muted-foreground">
-            <Sparkles className="h-16 w-16 mx-auto mb-4 opacity-20" />
-            <h3 className="text-xl font-semibold mb-2">Ready to Generate</h3>
-            <p className="text-sm max-w-md mx-auto">
-              Enter your topic and keywords, adjust settings, then click Generate Article to create 
-              professional, SEO-optimized content.
-            </p>
-          </Card>
+          <div className="space-y-4">
+            {/* Bulk Generator Promo Card */}
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800 overflow-hidden">
+              <div className="p-6 relative">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Database className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      <span className="text-sm font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">New Feature</span>
+                    </div>
+                    <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
+                      Need Multiple Articles?
+                    </h3>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+                      Generate dozens of articles at once with our Bulk Generator.
+                      Upload a CSV with topics and settings, then let our AI create all your content automatically.
+                    </p>
+                    <Link to="/bulk">
+                      <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                        Go to Bulk Generator
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    </Link>
+                  </div>
+                  <div className="hidden sm:block">
+                    <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
+                      <Database className="h-12 w-12 text-blue-600 dark:text-blue-400" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Original Ready to Generate Card */}
+            <Card className="p-12 text-center text-muted-foreground">
+              <Sparkles className="h-16 w-16 mx-auto mb-4 opacity-20" />
+              <h3 className="text-xl font-semibold mb-2">Ready to Generate</h3>
+              <p className="text-sm max-w-md mx-auto">
+                Enter your topic and keywords, adjust settings, then click Generate Article to create
+                professional, SEO-optimized content.
+              </p>
+            </Card>
+          </div>
         )}
       </div>
     </div>
