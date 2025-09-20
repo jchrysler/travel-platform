@@ -282,7 +282,7 @@ def finalize_answer(state: OverallState, config: RunnableConfig):
     result = llm.invoke(formatted_prompt)
     
     # Post-process the article to remove AI patterns
-    processed_content = post_process_article(result.content)
+    processed_content = post_process_article(result.content, link_count=link_count)
 
     # Replace the short urls with the original urls and add all used urls to the sources_gathered
     unique_sources = []

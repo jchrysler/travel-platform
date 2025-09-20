@@ -194,9 +194,15 @@ Remember: Write like you're explaining to a smart friend, not lecturing a classr
 
 
 # Add post-processing function to clean AI artifacts
-def post_process_article(article_text: str) -> str:
-    """Clean up common AI writing patterns to make content more human."""
-    
+def post_process_article(article_text: str, link_count: int = 10) -> str:
+    """Clean up common AI writing patterns to make content more human.
+
+    Args:
+        article_text: The article text to clean up
+        link_count: Maximum number of links to keep in the article
+    """
+    import re
+
     # List of AI giveaway phrases to remove or replace
     ai_patterns = {
         "Moreover,": "Also,",
@@ -205,7 +211,7 @@ def post_process_article(article_text: str) -> str:
         "In conclusion,": "",
         "In summary,": "",
         "It's worth noting that": "",
-        "It should be noted that": "", 
+        "It should be noted that": "",
         "delve into": "explore",
         "delving into": "exploring",
         "a myriad of": "many",
@@ -215,15 +221,91 @@ def post_process_article(article_text: str) -> str:
         "commence": "start",
         "nevertheless": "but",
         "however,": "But",
+        "On the other hand,": "But",
+        "on the other hand,": "but",
+        "In contrast,": "",
+        "in contrast,": "",
+        "Conversely,": "But",
+        "conversely,": "but",
+        "Additionally,": "Also,",
+        "additionally,": "also,",
     }
     
     result = article_text
-    
+
     # Replace AI patterns
     for pattern, replacement in ai_patterns.items():
         result = result.replace(pattern, replacement)
         # Also handle lowercase versions
         result = result.replace(pattern.lower(), replacement.lower())
+
+    # Fix overly long anchor text in markdown links
+    def shorten_link_text(match):
+        text = match.group(1)
+        url = match.group(2)
+        words = text.split()
+        # If more than 4 words, keep first 2-3 most important words
+        if len(words) > 4:
+            # Try to keep important words (capitalized, numbers)
+            important_words = [w for w in words if w[0].isupper() or any(c.isdigit() for c in w)]
+            if important_words:
+                text = ' '.join(important_words[:3])
+            else:
+                text = ' '.join(words[:3])
+        return f"[{text}]({url})"
+
+    result = re.sub(r'\[([^\]]{30,})\]\(([^)]+)\)', shorten_link_text, result)
+
+    # Reduce excessive em-dashes (limit to 2 per article)
+    em_dash_count = result.count('—')
+    if em_dash_count > 2:
+        # Replace extra em-dashes with commas or periods based on context
+        replacements_made = 0
+        lines = result.split('\n')
+        for i, line in enumerate(lines):
+            while '—' in line and replacements_made < (em_dash_count - 2):
+                # If em-dash is at end of sentence, use period
+                if line.find('—') < len(line) - 1 and line[line.find('—')+1:].strip().startswith(tuple('ABCDEFGHIJKLMNOPQRSTUVWXYZ')):
+                    line = line.replace('—', '.', 1)
+                else:
+                    line = line.replace('—', ',', 1)
+                replacements_made += 1
+            lines[i] = line
+            if replacements_made >= (em_dash_count - 2):
+                break
+        result = '\n'.join(lines)
+
+    # Clean up URL dumps and enforce link count limit
+    lines = result.split('\n')
+    processed_lines = []
+    links_found = []
+    references_section = False
+
+    for line in lines:
+        # Detect references/links section
+        if re.match(r'^(References|Sources|Links|Citations)', line, re.IGNORECASE):
+            references_section = True
+
+        # Find all links in the line
+        line_links = re.findall(r'\[([^\]]+)\]\((https?://[^)]+)\)', line)
+        line_links.extend(re.findall(r'(https?://[^\s]+)', line))
+
+        # If we're in references section and have too many links, limit them
+        if references_section and len(links_found) >= link_count:
+            # Skip lines that are just URLs or reference entries
+            if re.match(r'^\[?\d+\]?\s*https?://', line):
+                continue
+            if re.match(r'^https?://', line):
+                continue
+
+        links_found.extend(line_links)
+        processed_lines.append(line)
+
+    result = '\n'.join(processed_lines)
+
+    # Remove consecutive blank lines that may have been created
+    while '\n\n\n' in result:
+        result = result.replace('\n\n\n', '\n\n')
     
     # Ensure proper spacing around headers
     lines = result.split('\n')

@@ -202,8 +202,8 @@ class BulkArticleProcessor:
             }
     
     async def process_batch(self, batch_id: str):
-        """Process all articles in a batch.
-        
+        """Process all articles in a batch with parallel processing.
+
         Args:
             batch_id: Batch identifier
         """
@@ -214,68 +214,80 @@ class BulkArticleProcessor:
             if not batch:
                 logger.error(f"Batch {batch_id} not found")
                 return
-            
+
             # Update batch status to processing
             batch = update_batch_status(db, batch.id, BatchStatus.processing)
             logger.info(f"Starting batch {batch_id} with {batch.total_articles} articles")
-            
+
             self.current_batch_id = batch.id
-            
-            # Process articles one by one
+
+            # Create a semaphore to limit concurrent processing to 3
+            semaphore = asyncio.Semaphore(3)
+
+            async def process_single_article(article):
+                """Process a single article with semaphore control."""
+                async with semaphore:
+                    logger.info(f"Processing article {article.id}: {article.topic}")
+
+                    # Update article status to processing
+                    with SessionLocal() as article_db:
+                        article = update_article_status(
+                            article_db, article.id, ArticleStatus.processing
+                        )
+
+                    # Get model from batch config or use default
+                    model = "gemini-2.5-flash-lite"
+                    if batch.default_config and isinstance(batch.default_config, dict):
+                        model = batch.default_config.get('model', model)
+
+                    result = await self.process_article({
+                        "topic": article.topic,
+                        "keywords": article.keywords,
+                        "tone": article.tone,
+                        "word_count": article.word_count,
+                        "custom_persona": article.custom_persona,
+                        "link_count": article.link_count,
+                        "use_inline_links": bool(article.use_inline_links),
+                        "use_apa_style": bool(article.use_apa_style),
+                        "model": model
+                    })
+
+                    # Update article with results
+                    with SessionLocal() as article_db:
+                        if result["success"]:
+                            article = update_article_status(
+                                article_db,
+                                article.id,
+                                ArticleStatus.completed,
+                                generated_content=result
+                            )
+                            logger.info(f"Article {article.id} completed successfully")
+                        else:
+                            article = update_article_status(
+                                article_db,
+                                article.id,
+                                ArticleStatus.failed,
+                                error_message=result.get("error", "Unknown error")
+                            )
+                            logger.error(f"Article {article.id} failed: {result.get('error')}")
+
+                    # Small delay to avoid overwhelming the API
+                    await asyncio.sleep(0.5)
+                    return article
+
+            # Collect all queued articles
+            articles_to_process = []
             while self.processing:
-                # Get next queued article
                 article = get_next_queued_article(db, batch.id)
                 if not article:
-                    # No more articles to process
                     break
-                
-                logger.info(f"Processing article {article.id}: {article.topic}")
-                
-                # Update article status to processing
-                article = update_article_status(
-                    db, article.id, ArticleStatus.processing
-                )
-                
-                # Process the article
-                start_time = datetime.utcnow()
+                articles_to_process.append(article)
 
-                # Get model from batch config or use default
-                model = "gemini-2.5-flash-lite"
-                if batch.default_config and isinstance(batch.default_config, dict):
-                    model = batch.default_config.get('model', model)
-
-                result = await self.process_article({
-                    "topic": article.topic,
-                    "keywords": article.keywords,
-                    "tone": article.tone,
-                    "word_count": article.word_count,
-                    "custom_persona": article.custom_persona,
-                    "link_count": article.link_count,
-                    "use_inline_links": bool(article.use_inline_links),
-                    "use_apa_style": bool(article.use_apa_style),
-                    "model": model
-                })
-                
-                # Update article with results
-                if result["success"]:
-                    article = update_article_status(
-                        db,
-                        article.id,
-                        ArticleStatus.completed,
-                        generated_content=result
-                    )
-                    logger.info(f"Article {article.id} completed successfully")
-                else:
-                    article = update_article_status(
-                        db,
-                        article.id,
-                        ArticleStatus.failed,
-                        error_message=result.get("error", "Unknown error")
-                    )
-                    logger.error(f"Article {article.id} failed: {result.get('error')}")
-                
-                # Small delay between articles to avoid overwhelming the API
-                await asyncio.sleep(2)
+            # Process articles in parallel (3 at a time via semaphore)
+            if articles_to_process:
+                logger.info(f"Processing {len(articles_to_process)} articles in parallel (max 3 concurrent)")
+                tasks = [process_single_article(article) for article in articles_to_process]
+                await asyncio.gather(*tasks, return_exceptions=True)
             
             # Check if all articles are processed
             db.refresh(batch)
