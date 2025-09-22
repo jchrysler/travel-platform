@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, Sparkles, MapPin, BookOpen, Plus } from "lucide-react";
+import { ArrowLeft, Search, Sparkles, MapPin, BookOpen, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import {
   saveGuide,
   type Guide
 } from "@/utils/guideStorage";
+import { refineQueryToTitle, generateGuideTitle } from "@/utils/titleRefinement";
 
 interface SearchUnitData {
   id: string;
@@ -36,7 +37,7 @@ interface PlaceResult {
 }
 
 export default function DynamicDestination() {
-  const { destination } = useParams<{ destination: string }>();
+  const { destination, mode, id } = useParams<{ destination: string; mode?: string; id?: string }>();
   const navigate = useNavigate();
   const destinationName = destination ? deslugify(destination) : "";
 
@@ -47,9 +48,11 @@ export default function DynamicDestination() {
   const [isSearching, setIsSearching] = useState(false);
   const [currentStreamingId, setCurrentStreamingId] = useState<string | null>(null);
   const [existingGuides, setExistingGuides] = useState<Guide[]>([]);
-  const [showCreateGuide, setShowCreateGuide] = useState(false);
+  const [showSaveGuide, setShowSaveGuide] = useState(false);
   const [guideTitle, setGuideTitle] = useState("");
   const [guideDescription, setGuideDescription] = useState("");
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [refinedTitles, setRefinedTitles] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (destination) {
@@ -59,8 +62,14 @@ export default function DynamicDestination() {
       // Load existing guides
       const guides = getDestinationGuides(destination);
       setExistingGuides(guides);
+
+      // If we have a draft ID in the URL, set it
+      if (mode === 'draft' && id) {
+        setDraftId(id);
+        // TODO: Load draft from localStorage if exists
+      }
     }
-  }, [destination, destinationName]);
+  }, [destination, destinationName, mode, id]);
 
   const handleCustomSearch = async () => {
     if (!customQuery.trim() || !destination) return;
@@ -124,9 +133,20 @@ export default function DynamicDestination() {
   const performSearch = async (query: string) => {
     if (!destination) return;
 
+    // If this is the first search and we don't have a draft ID, create one and navigate
+    if (searchUnits.length === 0 && !draftId) {
+      const newDraftId = `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setDraftId(newDraftId);
+      navigate(`/travel/explore/${destination}/draft/${newDraftId}`, { replace: true });
+    }
+
     setIsSearching(true);
     const unitId = Date.now().toString();
     setCurrentStreamingId(unitId);
+
+    // Generate refined title for this query
+    const refinedTitle = refineQueryToTitle(query, destinationName);
+    setRefinedTitles(prev => new Map(prev).set(unitId, refinedTitle));
 
     // Add new streaming unit immediately
     const newUnit: SearchUnitData = {
@@ -221,18 +241,26 @@ export default function DynamicDestination() {
     setSavedItemIds(new Set());
   };
 
-  const handleCreateGuide = () => {
+  const handleDeleteSearch = (id: string) => {
+    setSearchUnits(prev => prev.filter(unit => unit.id !== id));
+  };
+
+  const handleSaveGuide = () => {
     if (!guideTitle.trim() || searchUnits.length === 0) return;
 
     const queries = searchUnits.map(unit => unit.query);
     const responses = searchUnits.map(unit => unit.response);
+    const sectionTitles = searchUnits.map(unit =>
+      refinedTitles.get(unit.id) || refineQueryToTitle(unit.query, destinationName)
+    );
 
     const guide = saveGuide(
       destinationName,
       guideTitle,
       queries,
       responses,
-      guideDescription
+      guideDescription,
+      sectionTitles
     );
 
     // Navigate to the new guide
@@ -327,58 +355,7 @@ export default function DynamicDestination() {
             </div>
           )}
 
-          {/* Create Guide Button */}
-          {searchUnits.length > 0 && (
-            <Card className="p-4">
-              {!showCreateGuide ? (
-                <Button
-                  onClick={() => setShowCreateGuide(true)}
-                  className="w-full"
-                  variant="outline"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Guide from Searches
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  <Input
-                    value={guideTitle}
-                    onChange={(e) => setGuideTitle(e.target.value)}
-                    placeholder="Guide title..."
-                    className="text-sm"
-                  />
-                  <Input
-                    value={guideDescription}
-                    onChange={(e) => setGuideDescription(e.target.value)}
-                    placeholder="Brief description (optional)..."
-                    className="text-sm"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleCreateGuide}
-                      disabled={!guideTitle.trim()}
-                      size="sm"
-                      className="flex-1"
-                    >
-                      Create
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setShowCreateGuide(false);
-                        setGuideTitle("");
-                        setGuideDescription("");
-                      }}
-                      size="sm"
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </Card>
-          )}
+          {/* Removed inline Create Guide - now using floating button */}
 
           {/* Popular Queries */}
           <div>
@@ -416,6 +393,8 @@ export default function DynamicDestination() {
                 onSaveItem={handleSaveItem}
                 onThreadQuery={performThreadQuery}
                 savedItemIds={savedItemIds}
+                onDelete={handleDeleteSearch}
+                showDelete={searchUnits.length > 0}
               />
             ))}
 
@@ -443,6 +422,97 @@ export default function DynamicDestination() {
         cityName={destinationName}
         destinationSlug={destination}
       />
+
+      {/* Floating Save Guide Button */}
+      {searchUnits.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <Button
+            size="lg"
+            className="shadow-lg"
+            onClick={() => setShowSaveGuide(true)}
+          >
+            <Save className="w-5 h-5 mr-2" />
+            Save Guide {searchUnits.length > 0 && `(${searchUnits.length})`}
+          </Button>
+        </div>
+      )}
+
+      {/* Save Guide Modal */}
+      {showSaveGuide && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <h2 className="text-2xl font-bold mb-4">Save Your Research</h2>
+            <p className="text-muted-foreground mb-6">
+              Save your {destinationName} searches as a personal guide you can reference and share later.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Guide Title</label>
+                <Input
+                  value={guideTitle || generateGuideTitle(destinationName, searchUnits.map(u => u.query))}
+                  onChange={(e) => setGuideTitle(e.target.value)}
+                  placeholder={`My ${destinationName} Guide`}
+                  className="text-lg"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Description (optional)</label>
+                <Input
+                  value={guideDescription}
+                  onChange={(e) => setGuideDescription(e.target.value)}
+                  placeholder="Brief description of what this guide covers..."
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Your Guide Sections ({searchUnits.length})
+                </label>
+                <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3">
+                  {searchUnits.map((unit, index) => {
+                    const refinedTitle = refinedTitles.get(unit.id) || refineQueryToTitle(unit.query, destinationName);
+                    return (
+                      <div key={unit.id} className="py-2 px-3 bg-muted/50 rounded">
+                        <div className="font-medium text-sm">
+                          {index + 1}. {refinedTitle}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Original search: "{unit.query}"
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                onClick={handleSaveGuide}
+                disabled={!guideTitle.trim()}
+                className="flex-1"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save Guide
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowSaveGuide(false);
+                  setGuideTitle("");
+                  setGuideDescription("");
+                }}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ export interface Guide {
   description?: string;
   queries: string[];
   responses: string[];
+  sectionTitles?: string[]; // AI-refined titles for each section
   createdAt: Date;
   updatedAt: Date;
   views: number;
@@ -71,7 +72,8 @@ export function saveGuide(
   title: string,
   queries: string[],
   responses: string[],
-  description?: string
+  description?: string,
+  sectionTitles?: string[]
 ): Guide {
   const guides = getAllGuides();
   const destinationSlug = slugify(destination);
@@ -93,6 +95,7 @@ export function saveGuide(
     description,
     queries,
     responses,
+    sectionTitles,
     createdAt: new Date(),
     updatedAt: new Date(),
     views: 0

@@ -27,6 +27,7 @@ export default function App() {
           <Route path="/travel/trip" element={<TripBuilder />} />
           <Route path="/travel/explore" element={<DestinationExplorer />} />
           <Route path="/travel/explore/:destination" element={<DynamicDestination />} />
+          <Route path="/travel/explore/:destination/draft/:id" element={<DynamicDestination />} />
           <Route path="/travel/explore/:destination/:guide" element={<DestinationGuide />} />
           <Route path="/travel/explore/:destination/saved/:listId" element={<SavedItemsPage />} />
         </Routes>

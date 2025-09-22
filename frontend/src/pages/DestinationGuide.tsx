@@ -14,6 +14,7 @@ import {
   deleteGuide,
   type Guide
 } from "@/utils/guideStorage";
+import { refineQueryToTitle } from "@/utils/titleRefinement";
 
 interface SearchUnitData {
   id: string;
@@ -21,6 +22,7 @@ interface SearchUnitData {
   response: string;
   timestamp: Date;
   isStreaming?: boolean;
+  refinedTitle?: string;
 }
 
 export default function DestinationGuide() {
@@ -46,13 +48,14 @@ export default function DestinationGuide() {
         setEditedTitle(loadedGuide.title);
         setEditedDescription(loadedGuide.description || "");
 
-        // Convert guide data to search units
+        // Convert guide data to search units with refined titles
         const units: SearchUnitData[] = loadedGuide.queries.map((query, index) => ({
           id: `guide-${loadedGuide.id}-${index}`,
           query,
           response: loadedGuide.responses[index] || "",
           timestamp: new Date(loadedGuide.createdAt),
-          isStreaming: false
+          isStreaming: false,
+          refinedTitle: loadedGuide.sectionTitles?.[index] || refineQueryToTitle(query, destinationName)
         }));
         setSearchUnits(units);
 
@@ -303,13 +306,20 @@ export default function DestinationGuide() {
           <Card className="p-4 sticky top-8">
             <h3 className="font-semibold mb-3">Guide Contents</h3>
             <div className="space-y-2">
-              {guide.queries.map((query, index) => (
+              {searchUnits.map((unit, index) => (
                 <a
                   key={index}
                   href={`#section-${index}`}
-                  className="block p-2 rounded hover:bg-muted transition-colors text-sm"
+                  className="block p-2 rounded hover:bg-muted transition-colors"
                 >
-                  {index + 1}. {query}
+                  <div className="font-medium text-sm">
+                    {index + 1}. {unit.refinedTitle}
+                  </div>
+                  {unit.refinedTitle !== unit.query && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      "{unit.query}"
+                    </div>
+                  )}
                 </a>
               ))}
             </div>

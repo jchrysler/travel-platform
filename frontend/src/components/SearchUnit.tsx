@@ -1,4 +1,4 @@
-import { Globe, MapPin, Sparkles } from "lucide-react";
+import { Globe, MapPin, Sparkles, Trash2 } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
@@ -24,6 +24,7 @@ interface SearchUnitData {
   searchResults?: PlaceResult[];
   timestamp: Date;
   isStreaming?: boolean;
+  refinedTitle?: string;
 }
 
 interface AdUnit {
@@ -42,6 +43,8 @@ interface SearchUnitProps {
   onSaveItem: (item: SavedItem) => void;
   onThreadQuery: (query: string, context: string) => Promise<string>;
   savedItemIds?: Set<string>;
+  onDelete?: (id: string) => void;
+  showDelete?: boolean;
 }
 
 // Generate dynamic ads based on city and query
@@ -105,7 +108,9 @@ export function SearchUnit({
   isLatest,
   onSaveItem,
   onThreadQuery,
-  savedItemIds = new Set()
+  savedItemIds = new Set(),
+  onDelete,
+  showDelete = false
 }: SearchUnitProps) {
   // Generate ads dynamically based on current query - no useState to ensure they update
   const ads = generateAds(cityName, unit.query);
@@ -233,13 +238,32 @@ export function SearchUnit({
         {/* Query Header */}
         <div className="pb-4 mb-4 border-b">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-primary" />
-              {unit.query}
-            </h3>
-            <span className="text-xs text-muted-foreground">
-              {new Date(unit.timestamp).toLocaleTimeString()}
-            </span>
+            <div>
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                {unit.refinedTitle || unit.query}
+              </h3>
+              {unit.refinedTitle && unit.refinedTitle !== unit.query && (
+                <p className="text-sm text-muted-foreground mt-1 ml-6">
+                  Search: "{unit.query}"
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {new Date(unit.timestamp).toLocaleTimeString()}
+              </span>
+              {showDelete && onDelete && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => onDelete(unit.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
