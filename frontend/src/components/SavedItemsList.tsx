@@ -211,7 +211,7 @@ export function SavedItemsList({
                     disabled={!pageTitle.trim()}
                   >
                     <Globe className="w-3 h-3 mr-1" />
-                    Create & Share
+                    Create Shareable Page
                   </Button>
                   <Button
                     size="sm"
