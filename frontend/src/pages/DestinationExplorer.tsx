@@ -1,17 +1,20 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Search, Sparkles, MapPin, Globe } from "lucide-react";
+import { ArrowLeft, Search, Sparkles, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
+import { SearchUnit } from "@/components/SearchUnit";
+import { SavedItemsList } from "@/components/SavedItemsList";
+import type { SavedItem } from "@/components/SaveableContent";
 
-interface SearchResult {
+interface SearchUnitData {
   id: string;
   query: string;
   response: string;
   searchResults?: PlaceResult[];
   timestamp: Date;
+  isStreaming?: boolean;
 }
 
 interface PlaceResult {
@@ -176,10 +179,11 @@ export default function DestinationExplorer() {
       }
     }
   }, [searchParams]);
-  const [searchHistory, setSearchHistory] = useState<SearchResult[]>([]);
+  const [searchUnits, setSearchUnits] = useState<SearchUnitData[]>([]);
+  const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
+  const [savedItemIds, setSavedItemIds] = useState<Set<string>>(new Set());
   const [isSearching, setIsSearching] = useState(false);
-  const [currentResponse, setCurrentResponse] = useState("");
-  const [showAds, setShowAds] = useState(false);
+  const [currentStreamingId, setCurrentStreamingId] = useState<string | null>(null);
 
   const categories = [
     { id: "food", name: "Food" },
@@ -192,7 +196,9 @@ export default function DestinationExplorer() {
   const handleCitySelect = (city: CityData) => {
     setSelectedCity(city);
     setSelectedCategory("");
-    setSearchHistory([]);
+    setSearchUnits([]);
+    setSavedItems([]);
+    setSavedItemIds(new Set());
   };
 
   const handleQuerySelect = async (query: string) => {
@@ -209,8 +215,18 @@ export default function DestinationExplorer() {
     if (!selectedCity) return;
 
     setIsSearching(true);
-    setCurrentResponse("");
-    setShowAds(true); // Show ads immediately when search starts
+    const unitId = Date.now().toString();
+    setCurrentStreamingId(unitId);
+
+    // Add new streaming unit immediately
+    const newUnit: SearchUnitData = {
+      id: unitId,
+      query,
+      response: "",
+      timestamp: new Date(),
+      isStreaming: true
+    };
+    setSearchUnits(prev => [newUnit, ...prev]);
 
     try {
       const response = await fetch("/api/travel/explore", {
@@ -242,21 +258,25 @@ export default function DestinationExplorer() {
           if (line.startsWith("data: ")) {
             const data = line.slice(6);
             if (data === "[DONE]") {
-              const result: SearchResult = {
-                id: Date.now().toString(),
-                query,
-                response: fullResponse,
-                timestamp: new Date(),
-              };
-              setSearchHistory(prev => [result, ...prev]);
-              setCurrentResponse("");
+              // Mark streaming as complete
+              setSearchUnits(prev => prev.map(unit =>
+                unit.id === unitId
+                  ? { ...unit, response: fullResponse, isStreaming: false }
+                  : unit
+              ));
+              setCurrentStreamingId(null);
               setIsSearching(false);
             } else {
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.content) {
                   fullResponse += parsed.content;
-                  setCurrentResponse(fullResponse);
+                  // Update the streaming unit's response
+                  setSearchUnits(prev => prev.map(unit =>
+                    unit.id === unitId
+                      ? { ...unit, response: fullResponse }
+                      : unit
+                  ));
                 }
               } catch (e) {
                 console.error("Parse error:", e);
@@ -269,6 +289,26 @@ export default function DestinationExplorer() {
       console.error("Search error:", err);
       setIsSearching(false);
     }
+  };
+
+  // Handlers for saved items
+  const handleSaveItem = (item: SavedItem) => {
+    setSavedItems(prev => [item, ...prev]);
+    setSavedItemIds(prev => new Set([...prev, item.id]));
+  };
+
+  const handleRemoveItem = (id: string) => {
+    setSavedItems(prev => prev.filter(item => item.id !== id));
+    setSavedItemIds(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(id);
+      return newSet;
+    });
+  };
+
+  const handleClearAll = () => {
+    setSavedItems([]);
+    setSavedItemIds(new Set());
   };
 
   if (!selectedCity) {
@@ -414,142 +454,42 @@ export default function DestinationExplorer() {
         </div>
 
         {/* Results Section */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Google-style Ad Block - Show immediately when searching or after results */}
-          {(showAds || searchHistory.length > 0) && (
-            <Card className="p-4 bg-slate-50/50 dark:bg-slate-900/20 border">
-              <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
-                <Globe className="w-3 h-3" />
-                <span>Sponsored</span>
-              </div>
-              <div className="space-y-3">
-                {/* Ad 1 */}
-                <div className="bg-background p-3 rounded-lg border hover:shadow-sm transition-shadow cursor-pointer">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-2 py-0.5 rounded">Ad</span>
-                        <span className="text-xs text-muted-foreground">Booking.com</span>
-                      </div>
-                      <h4 className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">
-                        Hotels in {selectedCity.name} - Up to 50% Off
-                      </h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Book now and save on {selectedCity.name} hotels. Free cancellation on most rooms.
-                        Price guarantee. 24/7 customer service.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+        <div className="lg:col-span-2">
+          {/* Search Units Container */}
+          <div className="space-y-4">
+            {searchUnits.map((unit, index) => (
+              <SearchUnit
+                key={unit.id}
+                unit={unit}
+                cityName={selectedCity.name}
+                isFirst={index === searchUnits.length - 1}
+                isLatest={index === 0 && unit.id === currentStreamingId}
+                onSaveItem={handleSaveItem}
+                savedItemIds={savedItemIds}
+              />
+            ))}
 
-                {/* Ad 2 */}
-                <div className="bg-background p-3 rounded-lg border hover:shadow-sm transition-shadow cursor-pointer">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-2 py-0.5 rounded">Ad</span>
-                        <span className="text-xs text-muted-foreground">GetYourGuide</span>
-                      </div>
-                      <h4 className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">
-                        {selectedCity.name} Tours & Activities - Book Online
-                      </h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Skip-the-line tickets • Expert guides • Small groups • Free cancellation
-                        Best price guaranteed for all {selectedCity.name} attractions.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ad 3 */}
-                <div className="bg-background p-3 rounded-lg border hover:shadow-sm transition-shadow cursor-pointer">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-2 py-0.5 rounded">Ad</span>
-                        <span className="text-xs text-muted-foreground">TripAdvisor</span>
-                      </div>
-                      <h4 className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">
-                        {selectedCity.name} Restaurant Reservations
-                      </h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Reserve tables at top-rated restaurants. Read millions of reviews.
-                        Find the perfect dining experience in {selectedCity.name}.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* Current Search */}
-          {isSearching && currentResponse && (
-            <div className="bg-background/50 p-6 rounded-lg">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-                <span className="text-sm text-muted-foreground">Searching {selectedCity.name}...</span>
-              </div>
-              <div className="travel-content text-base leading-relaxed">
-                <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(currentResponse) }} />
-              </div>
-            </div>
-          )}
-
-          {/* Search History */}
-          {searchHistory.map((result) => (
-            <div key={result.id} className="bg-background/50 p-6 rounded-lg">
-              <div className="mb-4 pb-4 border-b">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">{result.query}</h3>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(result.timestamp).toLocaleTimeString()}
-                  </span>
-                </div>
-              </div>
-              <div className="travel-content text-base leading-relaxed">
-                <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(result.response) }} />
-              </div>
-
-              {/* Simulated Search Results */}
-              {Math.random() > 0.5 && (
-                <div className="mt-4 pt-4 border-t">
-                  <div className="text-sm font-medium mb-3 flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    Related Places
-                  </div>
-                  <div className="space-y-2">
-                    <div className="p-2 bg-muted/50 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium text-sm">Sample Restaurant</div>
-                          <div className="text-xs text-muted-foreground">
-                            <span className="text-green-600 dark:text-green-400">Open now</span> •
-                            <span className="ml-1">4.5★</span> •
-                            <span className="ml-1">$$</span>
-                          </div>
-                        </div>
-                        <Button size="sm" variant="ghost">Directions</Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-
-          {/* Empty State */}
-          {searchHistory.length === 0 && !isSearching && (
-            <Card className="p-12 text-center">
-              <Sparkles className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">Start Exploring {selectedCity.name}</h3>
-              <p className="text-muted-foreground">
-                Choose a category or ask your own question to discover the best of {selectedCity.name}
-              </p>
-            </Card>
-          )}
+            {/* Empty State */}
+            {searchUnits.length === 0 && !isSearching && (
+              <Card className="p-12 text-center">
+                <Sparkles className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">Start Exploring {selectedCity.name}</h3>
+                <p className="text-muted-foreground">
+                  Choose a category or ask your own question to discover the best of {selectedCity.name}
+                </p>
+              </Card>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Saved Items Sidebar */}
+      <SavedItemsList
+        items={savedItems}
+        onRemove={handleRemoveItem}
+        onClearAll={handleClearAll}
+        cityName={selectedCity.name}
+      />
     </div>
   );
 }
