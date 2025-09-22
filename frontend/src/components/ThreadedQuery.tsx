@@ -163,6 +163,12 @@ export function ThreadedQuery({
           {responses.length === 0 && !isLoading && (
             <div className="flex flex-wrap gap-2">
               <button
+                onClick={() => setThreadQuery("More like this")}
+                className="text-xs px-2 py-1 bg-muted rounded-md hover:bg-muted/80 transition-colors"
+              >
+                More like this
+              </button>
+              <button
                 onClick={() => setThreadQuery("Tell me more about this")}
                 className="text-xs px-2 py-1 bg-muted rounded-md hover:bg-muted/80 transition-colors"
               >
