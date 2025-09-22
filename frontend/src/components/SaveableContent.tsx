@@ -67,19 +67,19 @@ export function SaveableContent({
     <div
       ref={containerRef}
       className={`saveable-content relative transition-all duration-200 ${
-        isHovered ? 'bg-muted/20 rounded-lg' : ''
+        isHovered ? 'bg-primary/5 rounded-lg border-l-2 border-primary/30' : ''
       }`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       style={{
-        padding: isHovered ? '8px' : '0px',
-        margin: isHovered ? '-8px' : '0px'
+        padding: isHovered ? '12px 12px 12px 16px' : '0px',
+        margin: isHovered ? '-12px -12px -12px -4px' : '0px'
       }}
     >
       {children}
 
       {showSaveButton && (
-        <div className="absolute -right-12 top-1/2 -translate-y-1/2 opacity-0 animate-fade-in">
+        <div className="absolute -right-14 top-1/2 -translate-y-1/2 opacity-0 animate-fade-in z-10">
           <Button
             size="sm"
             variant={saved ? "default" : "secondary"}

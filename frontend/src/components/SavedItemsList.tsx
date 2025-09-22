@@ -24,8 +24,9 @@ export function SavedItemsList({
   const handleCopyAll = () => {
     const content = items
       .map(item => {
-        const header = item.queryContext ? `From: ${item.queryContext}\n` : '';
-        return `${header}${item.content}\n`;
+        const header = item.queryContext ? `From: ${item.queryContext}\n\n` : '';
+        const cleanContent = item.content.replace(/\*\*/g, '');
+        return `${header}${cleanContent}\n`;
       })
       .join('\n---\n\n');
 
@@ -35,8 +36,9 @@ export function SavedItemsList({
   const handleDownload = () => {
     const content = items
       .map(item => {
-        const header = item.queryContext ? `From: ${item.queryContext}\n` : '';
-        return `${header}${item.content}\n`;
+        const header = item.queryContext ? `From: ${item.queryContext}\n\n` : '';
+        const cleanContent = item.content.replace(/\*\*/g, '');
+        return `${header}${cleanContent}\n`;
       })
       .join('\n---\n\n');
 
@@ -138,10 +140,10 @@ export function SavedItemsList({
                         From: {item.queryContext}
                       </div>
                     )}
-                    <div className="text-sm pr-6">
+                    <div className="text-sm pr-6 whitespace-pre-wrap">
                       {item.content.length > 150
-                        ? `${item.content.substring(0, 150)}...`
-                        : item.content}
+                        ? `${item.content.substring(0, 150).replace(/\*\*/g, '')}...`
+                        : item.content.replace(/\*\*/g, '')}
                     </div>
                     <div className="text-xs text-muted-foreground mt-2">
                       {new Date(item.timestamp).toLocaleTimeString()}

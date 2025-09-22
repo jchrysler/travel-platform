@@ -3,7 +3,7 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
 import { SaveableContent, SavedItem } from "./SaveableContent";
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 interface PlaceResult {
   name: string;
@@ -66,7 +66,7 @@ function generateAds(cityName: string, query: string): AdUnit[] {
   ];
 
   // Add query-specific ads
-  if (query.toLowerCase().includes("food") || query.toLowerCase().includes("restaurant")) {
+  if (query.toLowerCase().includes("food") || query.toLowerCase().includes("restaurant") || query.toLowerCase().includes("eat")) {
     baseAds.unshift({
       id: `ad-food-${Date.now()}`,
       sponsor: "OpenTable",
@@ -75,7 +75,7 @@ function generateAds(cityName: string, query: string): AdUnit[] {
     });
   }
 
-  if (query.toLowerCase().includes("hotel") || query.toLowerCase().includes("stay")) {
+  if (query.toLowerCase().includes("hotel") || query.toLowerCase().includes("stay") || query.toLowerCase().includes("accommodation")) {
     baseAds.unshift({
       id: `ad-hotel-${Date.now()}`,
       sponsor: "Expedia",
@@ -84,18 +84,28 @@ function generateAds(cityName: string, query: string): AdUnit[] {
     });
   }
 
-  return baseAds.slice(0, 3);
+  if (query.toLowerCase().includes("pizza")) {
+    baseAds.unshift({
+      id: `ad-pizza-${Date.now()}`,
+      sponsor: "Uber Eats",
+      title: `${cityName} Pizza Delivery - Order Now`,
+      description: `Get pizza delivered fast. Track your order in real-time. Special offers available.`
+    });
+  }
+
+  return baseAds.slice(0, 4);
 }
 
 export function SearchUnit({
   unit,
   cityName,
-  isFirst,
+  isFirst: _isFirst,
   isLatest,
   onSaveItem,
   savedItemIds = new Set()
 }: SearchUnitProps) {
-  const [ads] = useState(() => generateAds(cityName, unit.query));
+  // Generate ads dynamically based on current query - no useState to ensure they update
+  const ads = generateAds(cityName, unit.query);
   const unitRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to latest unit
@@ -152,40 +162,38 @@ export function SearchUnit({
       ref={unitRef}
       className={`search-unit mb-8 ${isLatest ? 'animate-slide-down' : ''}`}
     >
-      {/* Ad Block - Above (show for all except first) */}
-      {!isFirst && (
-        <Card className="mb-4 p-4 bg-slate-50/50 dark:bg-slate-900/20 border">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
-            <Globe className="w-3 h-3" />
-            <span>Sponsored</span>
-          </div>
-          <div className="space-y-3">
-            {ads.slice(0, 2).map((ad) => (
-              <div
-                key={ad.id}
-                className="bg-background p-3 rounded-lg border hover:shadow-sm transition-shadow cursor-pointer"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-2 py-0.5 rounded">
-                        Ad
-                      </span>
-                      <span className="text-xs text-muted-foreground">{ad.sponsor}</span>
-                    </div>
-                    <h4 className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">
-                      {ad.title}
-                    </h4>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {ad.description}
-                    </p>
+      {/* Ad Block - Top (always show) */}
+      <Card className="mb-4 p-4 bg-slate-50/50 dark:bg-slate-900/20 border">
+        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
+          <Globe className="w-3 h-3" />
+          <span>Sponsored</span>
+        </div>
+        <div className="space-y-3">
+          {ads.slice(0, 2).map((ad) => (
+            <div
+              key={ad.id}
+              className="bg-background p-3 rounded-lg border hover:shadow-sm transition-shadow cursor-pointer"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-2 py-0.5 rounded">
+                      Ad
+                    </span>
+                    <span className="text-xs text-muted-foreground">{ad.sponsor}</span>
                   </div>
+                  <h4 className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">
+                    {ad.title}
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {ad.description}
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
-        </Card>
-      )}
+            </div>
+          ))}
+        </div>
+      </Card>
 
       {/* Main Content Unit */}
       <Card className="p-6 shadow-lg hover:shadow-xl transition-shadow">
@@ -250,40 +258,38 @@ export function SearchUnit({
         )}
       </Card>
 
-      {/* Ad Block - Below (show after first query) */}
-      {isFirst && (
-        <Card className="mt-4 p-4 bg-slate-50/50 dark:bg-slate-900/20 border">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
-            <Globe className="w-3 h-3" />
-            <span>Sponsored</span>
-          </div>
-          <div className="space-y-3">
-            {ads.map((ad) => (
-              <div
-                key={ad.id}
-                className="bg-background p-3 rounded-lg border hover:shadow-sm transition-shadow cursor-pointer"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-2 py-0.5 rounded">
-                        Ad
-                      </span>
-                      <span className="text-xs text-muted-foreground">{ad.sponsor}</span>
-                    </div>
-                    <h4 className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">
-                      {ad.title}
-                    </h4>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {ad.description}
-                    </p>
+      {/* Ad Block - Bottom (always show) */}
+      <Card className="mt-4 p-4 bg-slate-50/50 dark:bg-slate-900/20 border">
+        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
+          <Globe className="w-3 h-3" />
+          <span>Sponsored</span>
+        </div>
+        <div className="space-y-3">
+          {ads.slice(2, 4).map((ad) => (
+            <div
+              key={ad.id}
+              className="bg-background p-3 rounded-lg border hover:shadow-sm transition-shadow cursor-pointer"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-2 py-0.5 rounded">
+                      Ad
+                    </span>
+                    <span className="text-xs text-muted-foreground">{ad.sponsor}</span>
                   </div>
+                  <h4 className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">
+                    {ad.title}
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {ad.description}
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
-        </Card>
-      )}
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }
