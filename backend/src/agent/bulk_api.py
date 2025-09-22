@@ -31,6 +31,7 @@ async def upload_batch(
     name: Optional[str] = None,
     description: Optional[str] = None,
     model: Optional[str] = "gemini-2.5-flash-lite",
+    default_persona: Optional[str] = None,
     user_id: str = "default_user",  # In production, get from auth
     db: Session = Depends(get_db)
 ):
@@ -88,12 +89,17 @@ async def upload_batch(
         # Convert DataFrame to list of dicts
         articles_data = []
         for _, row in df.iterrows():
+            # Use custom_persona from CSV if provided, otherwise use default_persona
+            custom_persona = str(row.get('custom_persona', ''))
+            if not custom_persona and default_persona:
+                custom_persona = default_persona
+
             article = {
                 "topic": str(row.get('topic', '')),
                 "keywords": str(row.get('keywords', '')),
                 "tone": str(row.get('tone', 'professional')),
                 "word_count": int(row.get('word_count', 1000)),
-                "custom_persona": str(row.get('custom_persona', '')),
+                "custom_persona": custom_persona,
                 "link_count": int(row.get('link_count', 5)),
                 "use_inline_links": bool(row.get('use_inline_links', True)),
                 "use_apa_style": bool(row.get('use_apa_style', False))
@@ -510,6 +516,7 @@ def get_article(
         "topic": article.topic,
         "keywords": article.keywords,
         "tone": article.tone,
+        "custom_persona": article.custom_persona,
         "title": article.generated_title,
         "content": article.generated_content,
         "word_count": article.word_count_actual,
@@ -627,7 +634,7 @@ def download_template(format: str = Query("csv", regex="^(csv|xlsx)$")):
             "keywords": "artificial intelligence, healthcare, medical diagnostics",
             "tone": "expert",
             "word_count": 1200,
-            "custom_persona": "Write as a medical technology expert",
+            "custom_persona": "You are a medical technology expert with 15 years of experience in healthcare IT. You have deep knowledge of clinical workflows, regulatory requirements, and emerging technologies. Your writing combines technical accuracy with accessibility, using real-world examples from hospitals and clinics to illustrate complex concepts.",
             "link_count": 7,
             "use_inline_links": "true",
             "use_apa_style": "true"
@@ -637,7 +644,7 @@ def download_template(format: str = Query("csv", regex="^(csv|xlsx)$")):
             "keywords": "remote work, productivity, team management",
             "tone": "casual",
             "word_count": 800,
-            "custom_persona": "",
+            "custom_persona": "You are a seasoned startup founder who has built and managed remote teams across multiple time zones. Your writing style is conversational and practical, sharing lessons learned from real experiences. You focus on actionable advice that readers can implement immediately.",
             "link_count": 4,
             "use_inline_links": "true",
             "use_apa_style": "false"

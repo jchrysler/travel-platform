@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Upload, Download, FileText, AlertCircle, CheckCircle, Clock, X, RefreshCw, Loader2, Copy, Sparkles } from 'lucide-react';
+import { Upload, Download, FileText, AlertCircle, CheckCircle, Clock, X, RefreshCw, Loader2, Copy, Sparkles, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Table,
   TableBody,
@@ -55,6 +56,7 @@ const BulkGenerator: React.FC = () => {
   const [selectedArticle, setSelectedArticle] = useState<any>(null);
   const [showArticleModal, setShowArticleModal] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite');
+  const [defaultPersona, setDefaultPersona] = useState('');
 
   const apiUrl = import.meta.env.DEV
     ? "http://localhost:2024"
@@ -112,6 +114,9 @@ const BulkGenerator: React.FC = () => {
     formData.append('file', file);
     formData.append('name', file.name.replace(/\.[^/.]+$/, ''));
     formData.append('model', selectedModel);
+    if (defaultPersona.trim()) {
+      formData.append('default_persona', defaultPersona.trim());
+    }
 
     try {
       const response = await fetch(`${apiUrl}/api/bulk/upload`, {
@@ -391,6 +396,24 @@ const BulkGenerator: React.FC = () => {
                 <Download className="w-4 h-4 mr-2" />
                 Download Excel Template
               </Button>
+            </div>
+
+            {/* Default Persona */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">
+                <User className="w-4 h-4 inline mr-2" />
+                Default Persona (Optional)
+              </label>
+              <Textarea
+                placeholder="Enter a default persona that will apply to all articles without a custom persona. For example: 'You are an experienced technology journalist writing for a professional audience. You have deep expertise in software development, cloud computing, and emerging technologies. Your writing style is informative yet engaging, using clear examples to explain complex concepts.'"
+                value={defaultPersona}
+                onChange={(e) => setDefaultPersona(e.target.value)}
+                className="min-h-[100px]"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This persona will be used for any articles in your CSV that don't have their own custom_persona specified.
+                Individual article personas in the CSV will override this default.
+              </p>
             </div>
 
             {/* Model Selection */}
@@ -737,6 +760,13 @@ const BulkGenerator: React.FC = () => {
               {selectedArticle.keywords && (
                 <div className="text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded p-3">
                   <strong>Keywords:</strong> {selectedArticle.keywords}
+                </div>
+              )}
+
+              {/* Persona if present */}
+              {selectedArticle.custom_persona && (
+                <div className="text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded p-3">
+                  <strong>Persona Used:</strong> {selectedArticle.custom_persona}
                 </div>
               )}
             </div>
