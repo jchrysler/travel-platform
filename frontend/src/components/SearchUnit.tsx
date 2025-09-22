@@ -164,7 +164,7 @@ export function SearchUnit({
             content={paragraph}
             queryContext={unit.query}
             onSave={onSaveItem}
-            onAskMore={handleAskMore}
+            onAskMore={hasThread ? undefined : handleAskMore}
             isSaved={isSaved}
             showThread={hasThread}
           >
@@ -181,6 +181,8 @@ export function SearchUnit({
               cityName={cityName}
               onClose={handleCloseThread}
               onSubmit={onThreadQuery}
+              onSaveItem={onSaveItem}
+              savedItemIds={savedItemIds}
             />
           )}
         </div>
