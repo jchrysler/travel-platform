@@ -92,7 +92,7 @@ export function SaveableContent({
     <div
       ref={containerRef}
       className={`saveable-content relative transition-all duration-200 rounded-lg ${
-        isHovered ? 'bg-primary/10' : ''
+        isHovered ? 'bg-primary/5' : ''
       } ${
         isMobile ? 'cursor-pointer' : ''
       }`}
