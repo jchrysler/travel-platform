@@ -3,7 +3,8 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
 import { SaveableContent, SavedItem } from "./SaveableContent";
-import { useEffect, useRef } from "react";
+import { ThreadedQuery } from "./ThreadedQuery";
+import { useEffect, useRef, useState } from "react";
 
 interface PlaceResult {
   name: string;
@@ -39,6 +40,7 @@ interface SearchUnitProps {
   isFirst: boolean;
   isLatest: boolean;
   onSaveItem: (item: SavedItem) => void;
+  onThreadQuery: (query: string, context: string) => Promise<string>;
   savedItemIds?: Set<string>;
 }
 
@@ -102,11 +104,13 @@ export function SearchUnit({
   isFirst: _isFirst,
   isLatest,
   onSaveItem,
+  onThreadQuery,
   savedItemIds = new Set()
 }: SearchUnitProps) {
   // Generate ads dynamically based on current query - no useState to ensure they update
   const ads = generateAds(cityName, unit.query);
   const unitRef = useRef<HTMLDivElement>(null);
+  const [activeThreads, setActiveThreads] = useState<Set<number>>(new Set());
 
   // Auto-scroll to latest unit
   useEffect(() => {
@@ -128,31 +132,58 @@ export function SearchUnit({
     return paragraphs.map((paragraph, index) => {
       const paragraphId = `${unit.id}-p-${index}`;
       const isSaved = savedItemIds.has(paragraphId);
+      const hasThread = activeThreads.has(index);
 
       // Skip very short paragraphs or headers
       if (paragraph.length < 50 || paragraph.startsWith('#')) {
         return (
-          <div
-            key={index}
-            dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(paragraph) }}
-            className="mb-4"
-          />
+          <div key={index}>
+            <div
+              dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(paragraph) }}
+              className="mb-4"
+            />
+          </div>
         );
       }
 
+      const handleAskMore = () => {
+        setActiveThreads(prev => new Set([...prev, index]));
+      };
+
+      const handleCloseThread = () => {
+        setActiveThreads(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(index);
+          return newSet;
+        });
+      };
+
       return (
-        <SaveableContent
-          key={index}
-          content={paragraph}
-          queryContext={unit.query}
-          onSave={onSaveItem}
-          isSaved={isSaved}
-        >
-          <div
-            dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(paragraph) }}
-            className="mb-4"
-          />
-        </SaveableContent>
+        <div key={index}>
+          <SaveableContent
+            content={paragraph}
+            queryContext={unit.query}
+            onSave={onSaveItem}
+            onAskMore={handleAskMore}
+            isSaved={isSaved}
+            showThread={hasThread}
+          >
+            <div
+              dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(paragraph) }}
+              className="mb-4"
+            />
+          </SaveableContent>
+
+          {hasThread && (
+            <ThreadedQuery
+              parentContent={paragraph}
+              parentQuery={unit.query}
+              cityName={cityName}
+              onClose={handleCloseThread}
+              onSubmit={onThreadQuery}
+            />
+          )}
+        </div>
       );
     });
   };

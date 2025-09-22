@@ -211,6 +211,59 @@ export default function DestinationExplorer() {
     setCustomQuery("");
   };
 
+  const performThreadQuery = async (query: string, context: string): Promise<string> => {
+    if (!selectedCity) return "";
+
+    try {
+      const response = await fetch("/api/travel/explore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          city: selectedCity.name,
+          query: context + "\n\n" + query,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Thread query failed");
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) throw new Error("No response stream");
+
+      let fullResponse = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data !== "[DONE]") {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.content) {
+                  fullResponse += parsed.content;
+                }
+              } catch (e) {
+                console.error("Parse error:", e);
+              }
+            }
+          }
+        }
+      }
+
+      return fullResponse;
+    } catch (err) {
+      console.error("Thread query error:", err);
+      return "Failed to get more information. Please try again.";
+    }
+  };
+
   const performSearch = async (query: string) => {
     if (!selectedCity) return;
 
@@ -465,6 +518,7 @@ export default function DestinationExplorer() {
                 isFirst={index === searchUnits.length - 1}
                 isLatest={index === 0 && unit.id === currentStreamingId}
                 onSaveItem={handleSaveItem}
+                onThreadQuery={performThreadQuery}
                 savedItemIds={savedItemIds}
               />
             ))}

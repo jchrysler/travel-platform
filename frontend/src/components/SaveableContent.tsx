@@ -1,5 +1,5 @@
 import { useState, useRef, ReactNode, useEffect } from "react";
-import { Plus, Check } from "lucide-react";
+import { Plus, Check, MessageCircle } from "lucide-react";
 import { Button } from "./ui/button";
 
 interface SaveableContentProps {
@@ -7,7 +7,9 @@ interface SaveableContentProps {
   content: string;
   queryContext?: string;
   onSave: (item: SavedItem) => void;
+  onAskMore?: () => void;
   isSaved?: boolean;
+  showThread?: boolean;
 }
 
 export interface SavedItem {
@@ -23,10 +25,12 @@ export function SaveableContent({
   content,
   queryContext,
   onSave,
-  isSaved = false
+  onAskMore,
+  isSaved = false,
+  showThread = false
 }: SaveableContentProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const [showSaveButton, setShowSaveButton] = useState(false);
+  const [showButtons, setShowButtons] = useState(false);
   const [saved, setSaved] = useState(isSaved);
   const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,40 +55,47 @@ export function SaveableContent({
     onSave(newItem);
     setSaved(true);
 
-    // Hide button after save with a delay
-    setTimeout(() => {
-      setShowSaveButton(false);
-    }, 1500);
+    // Don't hide buttons if thread feature is enabled
+    if (!onAskMore) {
+      setTimeout(() => {
+        setShowButtons(false);
+      }, 1500);
+    }
   };
 
   const handleMouseEnter = () => {
     if (!isMobile) {
       setIsHovered(true);
-      if (!saved) {
-        setShowSaveButton(true);
-      }
+      setShowButtons(true);
     }
   };
 
   const handleMouseLeave = () => {
     if (!isMobile) {
       setIsHovered(false);
-      if (!saved) {
+      if (!saved && !showThread) {
         setTimeout(() => {
-          setShowSaveButton(false);
+          setShowButtons(false);
         }, 200);
       }
     }
   };
 
   const handleTap = () => {
-    if (isMobile && !saved) {
-      setShowSaveButton(true);
+    if (isMobile) {
+      setShowButtons(true);
       setTimeout(() => {
-        if (!saved) {
-          setShowSaveButton(false);
+        if (!saved && !showThread) {
+          setShowButtons(false);
         }
       }, 3000);
+    }
+  };
+
+  const handleAskMore = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onAskMore) {
+      onAskMore();
     }
   };
 
@@ -100,15 +111,15 @@ export function SaveableContent({
       onMouseLeave={handleMouseLeave}
       onClick={handleTap}
       style={{
-        padding: isHovered || showSaveButton ? '12px' : '0px',
-        margin: isHovered || showSaveButton ? '-12px' : '0px'
+        padding: isHovered || showButtons || showThread ? '12px' : '0px',
+        margin: isHovered || showButtons || showThread ? '-12px' : '0px'
       }}
     >
       {children}
 
-      {showSaveButton && (
+      {showButtons && (
         <div className={`absolute ${
-          isMobile ? 'right-2 top-2' : '-right-14 top-1/2 -translate-y-1/2'
+          isMobile ? 'right-2 top-2 flex gap-2' : '-right-14 top-1/2 -translate-y-1/2 space-y-2'
         } opacity-0 animate-fade-in z-10`}>
           <Button
             size={isMobile ? "icon" : "sm"}
@@ -139,6 +150,24 @@ export function SaveableContent({
               )
             )}
           </Button>
+
+          {onAskMore && (
+            <Button
+              size={isMobile ? "icon" : "sm"}
+              variant={showThread ? "default" : "outline"}
+              className="shadow-lg transition-all duration-200"
+              onClick={handleAskMore}
+            >
+              {isMobile ? (
+                <MessageCircle className="w-4 h-4" />
+              ) : (
+                <>
+                  <MessageCircle className="w-3 h-3 mr-1" />
+                  Ask More
+                </>
+              )}
+            </Button>
+          )}
         </div>
       )}
     </div>
