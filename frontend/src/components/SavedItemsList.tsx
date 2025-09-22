@@ -25,7 +25,11 @@ export function SavedItemsList({
     const content = items
       .map(item => {
         const header = item.queryContext ? `From: ${item.queryContext}\n\n` : '';
-        const cleanContent = item.content.replace(/\*\*/g, '');
+        const cleanContent = item.content
+          .replace(/\*\*/g, '')
+          .replace(/\* {2}/g, '• ')
+          .replace(/^\* /gm, '• ')
+          .trim();
         return `${header}${cleanContent}\n`;
       })
       .join('\n---\n\n');
@@ -37,7 +41,11 @@ export function SavedItemsList({
     const content = items
       .map(item => {
         const header = item.queryContext ? `From: ${item.queryContext}\n\n` : '';
-        const cleanContent = item.content.replace(/\*\*/g, '');
+        const cleanContent = item.content
+          .replace(/\*\*/g, '')
+          .replace(/\* {2}/g, '• ')
+          .replace(/^\* /gm, '• ')
+          .trim();
         return `${header}${cleanContent}\n`;
       })
       .join('\n---\n\n');
@@ -140,10 +148,21 @@ export function SavedItemsList({
                         From: {item.queryContext}
                       </div>
                     )}
-                    <div className="text-sm pr-6 whitespace-pre-wrap">
-                      {item.content.length > 150
-                        ? `${item.content.substring(0, 150).replace(/\*\*/g, '')}...`
-                        : item.content.replace(/\*\*/g, '')}
+                    <div className="text-sm pr-6 whitespace-pre-line">
+                      {(() => {
+                        // Clean up markdown formatting
+                        let cleanContent = item.content
+                          .replace(/\*\*/g, '')
+                          .replace(/\* {2}/g, '• ')
+                          .replace(/^\* /gm, '• ')
+                          .trim();
+
+                        if (cleanContent.length > 200) {
+                          cleanContent = cleanContent.substring(0, 200) + '...';
+                        }
+
+                        return cleanContent;
+                      })()}
                     </div>
                     <div className="text-xs text-muted-foreground mt-2">
                       {new Date(item.timestamp).toLocaleTimeString()}
