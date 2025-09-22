@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Search, Sparkles, MapPin } from "lucide-react";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, Search, Sparkles, MapPin, Globe, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -165,9 +165,11 @@ const cities: CityData[] = [
 
 export default function DestinationExplorer() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [selectedCity, setSelectedCity] = useState<CityData | null>(null);
   const [customQuery, setCustomQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [destinationSearch, setDestinationSearch] = useState("");
 
   // Check URL params for initial city
   useEffect(() => {
@@ -364,6 +366,15 @@ export default function DestinationExplorer() {
     setSavedItemIds(new Set());
   };
 
+  const handleDestinationSearch = () => {
+    if (!destinationSearch.trim()) return;
+    const slug = destinationSearch.toLowerCase().trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    navigate(`/travel/explore/${slug}`);
+  };
+
   if (!selectedCity) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -374,34 +385,85 @@ export default function DestinationExplorer() {
           </Link>
           <h1 className="text-4xl font-bold mb-2">Destination Explorer</h1>
           <p className="text-muted-foreground">
-            Choose a city to explore with AI-powered recommendations
+            Explore any destination with AI-powered recommendations
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {cities.map((city) => (
-            <Card
-              key={city.id}
-              className="p-6 cursor-pointer hover:border-primary transition-all"
-              onClick={() => handleCitySelect(city)}
+        {/* Custom Destination Search */}
+        <Card className="mb-8 p-6 border-2">
+          <div className="flex items-center gap-3 mb-4">
+            <Globe className="w-6 h-6 text-primary" />
+            <h2 className="text-xl font-semibold">Search Any Destination</h2>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              value={destinationSearch}
+              onChange={(e) => setDestinationSearch(e.target.value)}
+              placeholder="Enter any city, region, or country..."
+              className="text-lg"
+              onKeyPress={(e) => e.key === "Enter" && handleDestinationSearch()}
+            />
+            <Button
+              onClick={handleDestinationSearch}
+              disabled={!destinationSearch.trim()}
+              size="lg"
             >
-              <div className="text-center">
-                <div className="text-4xl mb-3">{city.emoji}</div>
-                <h3 className="text-xl font-semibold mb-1">{city.name}</h3>
-                <p className="text-sm text-muted-foreground mb-3">{city.country}</p>
-                <p className="text-sm">{city.description}</p>
-              </div>
-            </Card>
-          ))}
+              <Search className="w-5 h-5 mr-2" />
+              Explore
+            </Button>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="text-sm text-muted-foreground">Try:</span>
+            {["Scottish Highlands", "Bali", "Iceland", "Dubai", "Santorini", "Patagonia"].map((example) => (
+              <button
+                key={example}
+                onClick={() => {
+                  setDestinationSearch(example);
+                  const slug = example.toLowerCase().trim()
+                    .replace(/[^\w\s-]/g, '')
+                    .replace(/[\s_-]+/g, '-')
+                    .replace(/^-+|-+$/g, '');
+                  navigate(`/travel/explore/${slug}`);
+                }}
+                className="text-sm px-3 py-1 rounded-full border hover:border-primary hover:bg-primary/5 transition-all"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        </Card>
+
+        {/* Popular Destinations */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold">Popular Destinations</h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {cities.map((city) => (
+              <Card
+                key={city.id}
+                className="p-6 cursor-pointer hover:border-primary transition-all"
+                onClick={() => handleCitySelect(city)}
+              >
+                <div className="text-center">
+                  <div className="text-4xl mb-3">{city.emoji}</div>
+                  <h3 className="text-xl font-semibold mb-1">{city.name}</h3>
+                  <p className="text-sm text-muted-foreground mb-3">{city.country}</p>
+                  <p className="text-sm">{city.description}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
 
         <Card className="mt-8 p-8 bg-muted/50">
           <div className="text-center">
             <MapPin className="w-12 h-12 mx-auto mb-4 text-primary" />
-            <h3 className="text-xl font-semibold mb-2">More Cities Coming Soon</h3>
+            <h3 className="text-xl font-semibold mb-2">Explore Anywhere</h3>
             <p className="text-muted-foreground">
-              We're expanding to Paris, Barcelona, Bangkok, Dubai, and more.
-              Each city will feature local insights, real-time information, and personalized recommendations.
+              From bustling cities to remote islands, get personalized travel recommendations for any destination on Earth.
+              Our AI analyzes real-time data to provide you with the most relevant and up-to-date travel insights.
             </p>
           </div>
         </Card>

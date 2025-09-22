@@ -7,6 +7,8 @@ import BulkGenerator from "@/pages/BulkGenerator";
 import TravelHub from "@/pages/TravelHub";
 import TripBuilder from "@/pages/TripBuilder";
 import DestinationExplorer from "@/pages/DestinationExplorer";
+import DynamicDestination from "@/pages/DynamicDestination";
+import DestinationGuide from "@/pages/DestinationGuide";
 import Navigation from "@/components/Navigation";
 
 export default function App() {
@@ -23,6 +25,8 @@ export default function App() {
           <Route path="/travel" element={<TravelHub />} />
           <Route path="/travel/trip" element={<TripBuilder />} />
           <Route path="/travel/explore" element={<DestinationExplorer />} />
+          <Route path="/travel/explore/:destination" element={<DynamicDestination />} />
+          <Route path="/travel/explore/:destination/:guide" element={<DestinationGuide />} />
         </Routes>
       </div>
     </ThemeProvider>
