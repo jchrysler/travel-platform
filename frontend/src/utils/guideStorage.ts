@@ -6,7 +6,8 @@ export interface Guide {
   destinationSlug: string;
   slug: string;
   title: string;
-  description?: string;
+  subtitle?: string; // SEO subtitle
+  description?: string; // User-provided description (deprecated, use subtitle)
   queries: string[];
   responses: string[];
   sectionTitles?: string[]; // AI-refined titles for each section
@@ -92,7 +93,8 @@ export function saveGuide(
     destinationSlug,
     slug,
     title,
-    description,
+    subtitle: description, // Using description as subtitle for backward compatibility
+    description, // Keep for backward compatibility
     queries,
     responses,
     sectionTitles,

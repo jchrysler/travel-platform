@@ -211,7 +211,14 @@ export default function DestinationGuide() {
           )}
         </div>
 
-        {/* Description */}
+        {/* Subtitle/Description */}
+        {guide.subtitle && (
+          <p className="text-lg text-muted-foreground mb-4">
+            {guide.subtitle}
+          </p>
+        )}
+
+        {/* Description (legacy) */}
         {isEditingDescription ? (
           <div className="flex items-center gap-2 mb-4">
             <Input

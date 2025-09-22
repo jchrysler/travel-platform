@@ -14,7 +14,7 @@ import {
   saveGuide,
   type Guide
 } from "@/utils/guideStorage";
-import { refineQueryToTitle, generateGuideTitle } from "@/utils/titleRefinement";
+import { refineQueryToTitle, generateSmartGuideTitle } from "@/utils/titleRefinement";
 
 interface SearchUnitData {
   id: string;
@@ -53,6 +53,8 @@ export default function DynamicDestination() {
   const [guideDescription, setGuideDescription] = useState("");
   const [draftId, setDraftId] = useState<string | null>(null);
   const [refinedTitles, setRefinedTitles] = useState<Map<string, string>>(new Map());
+  const [smartTitle, setSmartTitle] = useState<{ title: string; subtitle: string } | null>(null);
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
 
   useEffect(() => {
     if (destination) {
@@ -245,8 +247,11 @@ export default function DynamicDestination() {
     setSearchUnits(prev => prev.filter(unit => unit.id !== id));
   };
 
-  const handleSaveGuide = () => {
-    if (!guideTitle.trim() || searchUnits.length === 0) return;
+  const handleSaveGuide = async () => {
+    const finalTitle = guideTitle.trim() || smartTitle?.title || `${destinationName} Guide`;
+    const finalDescription = guideDescription.trim() || smartTitle?.subtitle || '';
+
+    if (searchUnits.length === 0) return;
 
     const queries = searchUnits.map(unit => unit.query);
     const responses = searchUnits.map(unit => unit.response);
@@ -256,10 +261,10 @@ export default function DynamicDestination() {
 
     const guide = saveGuide(
       destinationName,
-      guideTitle,
+      finalTitle,
       queries,
       responses,
-      guideDescription,
+      finalDescription,
       sectionTitles
     );
 
@@ -341,9 +346,9 @@ export default function DynamicDestination() {
                     <div className="font-medium group-hover:text-primary">
                       {guide.title}
                     </div>
-                    {guide.description && (
+                    {(guide.subtitle || guide.description) && (
                       <div className="text-sm text-muted-foreground mt-1">
-                        {guide.description}
+                        {guide.subtitle || guide.description}
                       </div>
                     )}
                     <div className="text-xs text-muted-foreground mt-2">
@@ -446,25 +451,53 @@ export default function DynamicDestination() {
               Save your {destinationName} searches as a personal guide you can reference and share later.
             </p>
 
+            {/* Generate smart title in background */}
+            {!smartTitle && !isGeneratingTitle && (() => {
+              setIsGeneratingTitle(true);
+              generateSmartGuideTitle(
+                destinationName,
+                searchUnits.map(u => u.query),
+                searchUnits.map(u => u.response)
+              ).then(result => {
+                setSmartTitle(result);
+                if (!guideTitle) {
+                  setGuideTitle(result.title);
+                  setGuideDescription(result.subtitle);
+                }
+                setIsGeneratingTitle(false);
+              });
+              return null;
+            })()}
+
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">Guide Title</label>
                 <Input
-                  value={guideTitle || generateGuideTitle(destinationName, searchUnits.map(u => u.query))}
+                  value={guideTitle}
                   onChange={(e) => setGuideTitle(e.target.value)}
-                  placeholder={`My ${destinationName} Guide`}
+                  placeholder={smartTitle?.title || `My ${destinationName} Guide`}
                   className="text-lg"
                   autoFocus
                 />
+                {smartTitle && !guideTitle && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Suggested: {smartTitle.title}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block">Description (optional)</label>
+                <label className="text-sm font-medium mb-2 block">Description</label>
                 <Input
                   value={guideDescription}
                   onChange={(e) => setGuideDescription(e.target.value)}
-                  placeholder="Brief description of what this guide covers..."
+                  placeholder={smartTitle?.subtitle || "Brief description of what this guide covers..."}
                 />
+                {smartTitle && !guideDescription && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Suggested: {smartTitle.subtitle}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -492,7 +525,7 @@ export default function DynamicDestination() {
             <div className="flex gap-3 mt-6">
               <Button
                 onClick={handleSaveGuide}
-                disabled={!guideTitle.trim()}
+                disabled={searchUnits.length === 0}
                 className="flex-1"
               >
                 <Save className="w-4 h-4 mr-2" />
