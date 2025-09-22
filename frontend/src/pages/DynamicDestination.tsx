@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { SearchUnit } from "@/components/SearchUnit";
 import { SavedItemsList } from "@/components/SavedItemsList";
 import type { SavedItem } from "@/components/SaveableContent";
-import { deslugify, slugify } from "@/utils/slugify";
+import { deslugify } from "@/utils/slugify";
 import {
   trackDestinationVisit,
   getDestinationGuides,

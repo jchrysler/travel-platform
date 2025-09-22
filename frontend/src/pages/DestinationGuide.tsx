@@ -90,7 +90,7 @@ export default function DestinationGuide() {
     }
   };
 
-  const handleThreadQuery = async (query: string, context: string): Promise<string> => {
+  const handleThreadQuery = async (_query: string, _context: string): Promise<string> => {
     // For guides, we don't support threading - return empty
     return "Threading is not available in saved guides. Please visit the destination page to ask new questions.";
   };
