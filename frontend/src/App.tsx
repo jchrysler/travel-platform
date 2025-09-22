@@ -9,6 +9,7 @@ import TripBuilder from "@/pages/TripBuilder";
 import DestinationExplorer from "@/pages/DestinationExplorer";
 import DynamicDestination from "@/pages/DynamicDestination";
 import DestinationGuide from "@/pages/DestinationGuide";
+import SavedItemsPage from "@/pages/SavedItemsPage";
 import Navigation from "@/components/Navigation";
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/travel/explore" element={<DestinationExplorer />} />
           <Route path="/travel/explore/:destination" element={<DynamicDestination />} />
           <Route path="/travel/explore/:destination/:guide" element={<DestinationGuide />} />
+          <Route path="/travel/explore/:destination/saved/:listId" element={<SavedItemsPage />} />
         </Routes>
       </div>
     </ThemeProvider>

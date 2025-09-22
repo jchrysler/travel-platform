@@ -441,6 +441,7 @@ export default function DynamicDestination() {
         onRemove={handleRemoveItem}
         onClearAll={handleClearAll}
         cityName={destinationName}
+        destinationSlug={destination}
       />
     </div>
   );

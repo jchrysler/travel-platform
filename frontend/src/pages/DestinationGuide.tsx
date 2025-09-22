@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, Trash2, Edit, Check, X } from "lucide-react";
+import { ArrowLeft, Eye, Trash2, Edit, Check, X, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ export default function DestinationGuide() {
   const [editedTitle, setEditedTitle] = useState("");
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState("");
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     if (destination && guideSlug) {
@@ -87,6 +88,27 @@ export default function DestinationGuide() {
     if (guide && confirm(`Are you sure you want to delete "${guide.title}"?`)) {
       deleteGuide(guide.id);
       navigate(`/travel/explore/${destination}`);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: guide?.title || "Travel Guide",
+          text: guide?.description || `Check out this guide for ${destinationName}`,
+          url: url
+        });
+      } catch (err) {
+        console.error('Error sharing:', err);
+      }
+    } else {
+      // Fallback to copying to clipboard
+      await navigator.clipboard.writeText(url);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
     }
   };
 
@@ -250,15 +272,27 @@ export default function DestinationGuide() {
               Updated {new Date(guide.updatedAt).toLocaleDateString()}
             </span>
           )}
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={handleDeleteGuide}
-            className="ml-auto"
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete Guide
-          </Button>
+          <div className="ml-auto flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleShare}
+            >
+              {isCopied ? (
+                <><Check className="w-4 h-4 mr-2" /> Copied!</>
+              ) : (
+                <><Share2 className="w-4 h-4 mr-2" /> Share</>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleDeleteGuide}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
+          </div>
         </div>
       </div>
 

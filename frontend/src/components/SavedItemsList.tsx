@@ -1,24 +1,34 @@
 import { useState } from "react";
-import { X, ChevronRight, ChevronLeft, Bookmark, Copy, Download } from "lucide-react";
+import { X, ChevronRight, ChevronLeft, Bookmark, Copy, Download, Share2, Globe } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
+import { Input } from "./ui/input";
 import type { SavedItem } from "./SaveableContent";
+import { useNavigate } from "react-router-dom";
+import { slugify } from "@/utils/slugify";
 
 interface SavedItemsListProps {
   items: SavedItem[];
   onRemove: (id: string) => void;
   onClearAll: () => void;
   cityName?: string;
+  destinationSlug?: string;
 }
 
 export function SavedItemsList({
   items,
   onRemove,
   onClearAll,
-  cityName
+  cityName,
+  destinationSlug
 }: SavedItemsListProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showCreatePage, setShowCreatePage] = useState(false);
+  const [pageTitle, setPageTitle] = useState("");
+  const [pageDescription, setPageDescription] = useState("");
+  const [isCopied, setIsCopied] = useState(false);
+  const navigate = useNavigate();
   const hasItems = items.length > 0;
 
   const handleCopyAll = () => {
@@ -104,35 +114,125 @@ export function SavedItemsList({
             </div>
 
             {hasItems && (
-              <div className="flex gap-2 mt-3">
+              <>
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyAll}
+                    className="flex-1"
+                  >
+                    <Copy className="w-3 h-3 mr-1" />
+                    Copy
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleDownload}
+                    className="flex-1"
+                  >
+                    <Download className="w-3 h-3 mr-1" />
+                    Export
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={onClearAll}
+                  >
+                    Clear
+                  </Button>
+                </div>
                 <Button
                   size="sm"
-                  variant="outline"
-                  onClick={handleCopyAll}
-                  className="flex-1"
+                  className="w-full mt-2"
+                  onClick={() => setShowCreatePage(true)}
                 >
-                  <Copy className="w-3 h-3 mr-1" />
-                  Copy All
+                  <Share2 className="w-3 h-3 mr-1" />
+                  Create Shareable Page
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleDownload}
-                  className="flex-1"
-                >
-                  <Download className="w-3 h-3 mr-1" />
-                  Export
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={onClearAll}
-                >
-                  Clear
-                </Button>
-              </div>
+              </>
             )}
           </div>
+
+          {/* Create Page Form */}
+          {showCreatePage && (
+            <div className="p-4 border-b bg-muted/30">
+              <div className="space-y-3">
+                <Input
+                  value={pageTitle}
+                  onChange={(e) => setPageTitle(e.target.value)}
+                  placeholder="Page title..."
+                  className="text-sm"
+                />
+                <Input
+                  value={pageDescription}
+                  onChange={(e) => setPageDescription(e.target.value)}
+                  placeholder="Brief description (optional)..."
+                  className="text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => {
+                      if (!pageTitle.trim()) return;
+
+                      // Generate unique ID for this saved list
+                      const listId = `list_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                      const destination = destinationSlug || slugify(cityName || 'travel');
+
+                      // Save to localStorage
+                      const savedList = {
+                        id: listId,
+                        title: pageTitle,
+                        description: pageDescription,
+                        destination: cityName || 'Travel',
+                        items: items,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                      };
+
+                      const existingLists = JSON.parse(localStorage.getItem('saved_lists') || '[]');
+                      existingLists.push(savedList);
+                      localStorage.setItem('saved_lists', JSON.stringify(existingLists));
+
+                      // Generate URL and navigate
+                      const url = `/travel/explore/${destination}/saved/${listId}`;
+                      const fullUrl = `${window.location.origin}${url}`;
+
+                      // Copy to clipboard
+                      navigator.clipboard.writeText(fullUrl);
+                      setIsCopied(true);
+                      setTimeout(() => setIsCopied(false), 3000);
+
+                      // Navigate to the new page
+                      navigate(url);
+                    }}
+                    disabled={!pageTitle.trim()}
+                  >
+                    <Globe className="w-3 h-3 mr-1" />
+                    Create & Share
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setShowCreatePage(false);
+                      setPageTitle("");
+                      setPageDescription("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                {isCopied && (
+                  <div className="text-xs text-green-600 dark:text-green-400">
+                    ✓ Link copied to clipboard!
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Items List */}
           <ScrollArea className="flex-1 p-4">
