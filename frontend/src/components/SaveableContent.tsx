@@ -1,4 +1,4 @@
-import { useState, useRef, ReactNode } from "react";
+import { useState, useRef, ReactNode, useEffect } from "react";
 import { Plus, Check } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -28,7 +28,17 @@ export function SaveableContent({
   const [isHovered, setIsHovered] = useState(false);
   const [showSaveButton, setShowSaveButton] = useState(false);
   const [saved, setSaved] = useState(isSaved);
+  const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -48,40 +58,60 @@ export function SaveableContent({
   };
 
   const handleMouseEnter = () => {
-    setIsHovered(true);
-    if (!saved) {
-      setShowSaveButton(true);
+    if (!isMobile) {
+      setIsHovered(true);
+      if (!saved) {
+        setShowSaveButton(true);
+      }
     }
   };
 
   const handleMouseLeave = () => {
-    setIsHovered(false);
-    if (!saved) {
+    if (!isMobile) {
+      setIsHovered(false);
+      if (!saved) {
+        setTimeout(() => {
+          setShowSaveButton(false);
+        }, 200);
+      }
+    }
+  };
+
+  const handleTap = () => {
+    if (isMobile && !saved) {
+      setShowSaveButton(true);
       setTimeout(() => {
-        setShowSaveButton(false);
-      }, 200);
+        if (!saved) {
+          setShowSaveButton(false);
+        }
+      }, 3000);
     }
   };
 
   return (
     <div
       ref={containerRef}
-      className={`saveable-content relative transition-all duration-200 ${
-        isHovered ? 'bg-primary/5 rounded-lg border-l-2 border-primary/30' : ''
+      className={`saveable-content relative transition-all duration-200 rounded-lg ${
+        isHovered ? 'bg-primary/10' : ''
+      } ${
+        isMobile ? 'cursor-pointer' : ''
       }`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onClick={handleTap}
       style={{
-        padding: isHovered ? '12px 12px 12px 16px' : '0px',
-        margin: isHovered ? '-12px -12px -12px -4px' : '0px'
+        padding: isHovered || showSaveButton ? '12px' : '0px',
+        margin: isHovered || showSaveButton ? '-12px' : '0px'
       }}
     >
       {children}
 
       {showSaveButton && (
-        <div className="absolute -right-14 top-1/2 -translate-y-1/2 opacity-0 animate-fade-in z-10">
+        <div className={`absolute ${
+          isMobile ? 'right-2 top-2' : '-right-14 top-1/2 -translate-y-1/2'
+        } opacity-0 animate-fade-in z-10`}>
           <Button
-            size="sm"
+            size={isMobile ? "icon" : "sm"}
             variant={saved ? "default" : "secondary"}
             className={`shadow-lg transition-all duration-200 ${
               saved ? 'bg-green-500 hover:bg-green-600' : ''
@@ -90,15 +120,23 @@ export function SaveableContent({
             disabled={saved}
           >
             {saved ? (
-              <>
-                <Check className="w-3 h-3 mr-1" />
-                Saved
-              </>
+              isMobile ? (
+                <Check className="w-4 h-4" />
+              ) : (
+                <>
+                  <Check className="w-3 h-3 mr-1" />
+                  Saved
+                </>
+              )
             ) : (
-              <>
-                <Plus className="w-3 h-3 mr-1" />
-                Save
-              </>
+              isMobile ? (
+                <Plus className="w-4 h-4" />
+              ) : (
+                <>
+                  <Plus className="w-3 h-3 mr-1" />
+                  Save
+                </>
+              )
             )}
           </Button>
         </div>

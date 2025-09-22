@@ -249,8 +249,3 @@ html {
   position: relative;
   transition: all 0.2s ease;
 }
-
-.saveable-content:hover {
-  background-color: rgba(var(--primary), 0.05);
-  border-radius: 0.5rem;
-}
