@@ -3,7 +3,6 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
 import { SaveableContent, SavedItem } from "./SaveableContent";
-import { ThreadedQuery } from "./ThreadedQuery";
 import { useEffect, useRef, useState } from "react";
 
 interface PlaceResult {
@@ -179,17 +178,7 @@ export function SearchUnit({
             />
           </SaveableContent>
 
-          {hasThread && (
-            <ThreadedQuery
-              parentContent={paragraph}
-              parentQuery={unit.query}
-              cityName={cityName}
-              onClose={handleCloseThread}
-              onSubmit={onThreadQuery}
-              onSaveItem={onSaveItem}
-              savedItemIds={savedItemIds}
-            />
-          )}
+          {/* Threaded queries removed - feature deprecated */}
         </div>
       );
     });
