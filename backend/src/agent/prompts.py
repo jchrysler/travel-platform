@@ -78,54 +78,56 @@ def get_citation_instructions(use_inline_links: bool, use_apa_style: bool, link_
     return "\n".join(instructions)
 
 
-# Improved query generation
-query_writer_instructions = """Generate targeted search queries to research "{research_topic}" for a {word_count}-word article.
+# Travel query generation
+query_writer_instructions = """Generate targeted search queries for travel planning: "{research_topic}".
 
 {keyword_instructions}
 
 Create {number_queries} specific queries that will find:
-1. Current data and statistics (include year 2024/2025)
-2. Expert opinions and authoritative sources
-3. Real-world examples and case studies
-4. Recent developments and trends
-5. Practical applications or solutions
+1. Current prices, availability, and booking information (2024/2025)
+2. Real-time travel conditions and weather
+3. Recent traveler reviews and experiences
+4. Local events, festivals, and seasonal activities
+5. Transportation options and schedules
+6. Safety advisories and entry requirements
 
 Current date: {current_date}
 
 Format as JSON:
 {{
-    "rationale": "Brief strategy explanation",
+    "rationale": "Brief search strategy for travel planning",
     "query": ["query 1", "query 2", "query 3"]
 }}
 
 Topic: {research_topic}"""
 
 
-# Improved web search instructions
-web_searcher_instructions = """Research "{research_topic}" comprehensively for article creation.
+# Travel research instructions
+web_searcher_instructions = """Research travel information for: "{research_topic}".
 
 Focus on finding:
-- Current statistics and data (prioritize 2024-2025)
-- Expert quotes and authoritative perspectives  
-- Specific examples and case studies
-- Practical information readers can use
-- Unique insights not commonly known
+- Current prices and availability (2024-2025)
+- Real-time conditions (weather, crowds, closures)
+- Recent traveler experiences and reviews
+- Transportation schedules and booking requirements
+- Local events and seasonal considerations
+- Safety advisories and entry requirements
 
 Current date: {current_date}
 
-Gather diverse, credible information from your searches. Include specific facts, figures, and quotes when available.
+Gather specific, actionable information travelers can use for planning.
 
 Topic: {research_topic}"""
 
 
-# Simplified reflection
-reflection_instructions = """Assess if research on "{research_topic}" is sufficient for a {word_count}-word article.
+# Travel research reflection
+reflection_instructions = """Assess if travel research on "{research_topic}" is sufficient for comprehensive planning.
 
 Check for:
-- Enough concrete facts and data
-- Diverse perspectives covered
-- Current/recent information
-- Practical examples included
+- Current prices and availability
+- Transportation and accommodation options
+- Recent traveler experiences and tips
+- Safety, visa, and health requirements
 
 Output JSON:
 {{

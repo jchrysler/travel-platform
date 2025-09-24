@@ -10,52 +10,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.runnables import RunnableConfig
 # CompiledGraph import removed - not needed
-from agent.graph import graph
-from agent.improve_graph import improve_graph
+from agent.travel_research_graph import graph
 from agent.travel_api import create_travel_routes
-from agent.bulk_api import router as bulk_router
-from agent.bulk_processor import BulkArticleProcessor
 
 logger = logging.getLogger(__name__)
 
-# Background processor instance
-processor = None
-processor_task = None
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Manage app lifecycle - start/stop background processor."""
-    global processor, processor_task
-
-    # Determine LangGraph URL based on environment
-    langgraph_url = os.getenv("LANGGRAPH_URL", "http://localhost:8123")
-    if os.getenv("RAILWAY_ENVIRONMENT"):
-        # In production (Railway), use local connection
-        langgraph_url = "http://localhost:8123"
-
-    # Start the bulk processor
-    processor = BulkArticleProcessor(langgraph_url=langgraph_url)
-    await processor.start()
-
-    # Start processing queue in background
-    processor_task = asyncio.create_task(processor.process_queue())
-    logger.info(f"Bulk processor started with LangGraph URL: {langgraph_url}")
-
-    yield
-
-    # Shutdown processor
-    if processor:
-        await processor.stop()
-    if processor_task:
-        processor_task.cancel()
-        try:
-            await processor_task
-        except asyncio.CancelledError:
-            pass
-    logger.info("Bulk processor stopped")
-
-# Define the FastAPI app with lifespan
-app = FastAPI(lifespan=lifespan)
+# Define the FastAPI app
+app = FastAPI()
 
 # Note: Database tables are created manually via SQL script
 # The production database tables have been created and are ready to use
@@ -71,9 +32,6 @@ app.add_middleware(
 
 # Add travel routes
 app = create_travel_routes(app)
-
-# Add bulk processing routes
-app.include_router(bulk_router)
 
 # Redirect root to /app
 @app.get("/")
@@ -104,25 +62,6 @@ async def stream_graph(request: dict):
             yield chunk
     except Exception as e:
         yield {"error": str(e)}
-
-# Add content improvement endpoint
-@app.post("/improve")
-async def improve_content(request: dict):
-    try:
-        config = RunnableConfig()
-        result = await improve_graph.ainvoke(request, config=config)
-        
-        # Format the response
-        return {
-            "improved_content": result.get("improved_content", ""),
-            "analysis": {
-                "issues_found": result.get("content_analysis", {}).get("analysis", "").split("\n") if result.get("content_analysis") else [],
-                "improvements_made": result.get("improvements_made", []),
-                "compliance_status": result.get("compliance_check", {}).get("status", "Unknown")
-            }
-        }
-    except Exception as e:
-        return {"error": str(e)}
 
 
 # Determine the frontend build path

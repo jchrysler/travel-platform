@@ -16,7 +16,7 @@ export default function TravelHub() {
       <div className="grid md:grid-cols-2 gap-8">
         {/* Trip Builder Card */}
         <Link
-          to="/travel/trip"
+          to="/trip"
           className="group relative bg-card rounded-xl border hover:border-primary transition-all duration-300 overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -53,7 +53,7 @@ export default function TravelHub() {
 
         {/* Destination Explorer Card */}
         <Link
-          to="/travel/explore"
+          to="/explore"
           className="group relative bg-card rounded-xl border hover:border-primary transition-all duration-300 overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />

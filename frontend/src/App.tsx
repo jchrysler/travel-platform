@@ -1,9 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/lib/theme-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import ArticleGenerator from "@/pages/ArticleGenerator";
-import ContentImprover from "@/pages/ContentImprover";
-import BulkGenerator from "@/pages/BulkGenerator";
 import TravelHub from "@/pages/TravelHub";
 import TripBuilder from "@/pages/TripBuilder";
 import DestinationExplorer from "@/pages/DestinationExplorer";
@@ -20,16 +17,13 @@ export default function App() {
         <Navigation />
 
         <Routes>
-          <Route path="/" element={<ArticleGenerator />} />
-          <Route path="/c" element={<ContentImprover />} />
-          <Route path="/bulk" element={<BulkGenerator />} />
-          <Route path="/travel" element={<TravelHub />} />
-          <Route path="/travel/trip" element={<TripBuilder />} />
-          <Route path="/travel/explore" element={<DestinationExplorer />} />
-          <Route path="/travel/explore/:destination" element={<DynamicDestination />} />
-          <Route path="/travel/explore/:destination/draft/:id" element={<DynamicDestination />} />
-          <Route path="/travel/explore/:destination/:guide" element={<DestinationGuide />} />
-          <Route path="/travel/explore/:destination/saved/:listId" element={<SavedItemsPage />} />
+          <Route path="/" element={<TravelHub />} />
+          <Route path="/trip" element={<TripBuilder />} />
+          <Route path="/explore" element={<DestinationExplorer />} />
+          <Route path="/explore/:destination" element={<DynamicDestination />} />
+          <Route path="/explore/:destination/draft/:id" element={<DynamicDestination />} />
+          <Route path="/explore/:destination/:guide" element={<DestinationGuide />} />
+          <Route path="/explore/:destination/saved/:listId" element={<SavedItemsPage />} />
         </Routes>
       </div>
     </ThemeProvider>

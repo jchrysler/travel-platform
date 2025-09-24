@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Sparkles, FileEdit, MapPin, Database } from "lucide-react";
+import { MapPin, Calendar, Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Navigation() {
@@ -11,8 +11,8 @@ export default function Navigation() {
         <div className="flex items-center justify-between h-14">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-primary" />
-              <span className="font-bold text-lg">Content Suite</span>
+              <MapPin className="h-6 w-6 text-primary" />
+              <span className="font-bold text-lg">Travel Platform</span>
             </div>
             
             <div className="flex items-center gap-1">
@@ -21,62 +21,46 @@ export default function Navigation() {
                 className={cn(
                   "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                   "hover:bg-muted/50",
-                  location.pathname === "/" 
-                    ? "bg-muted text-foreground" 
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" />
-                  Article Generator
-                </div>
-              </Link>
-              
-              <Link
-                to="/c"
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                  "hover:bg-muted/50",
-                  location.pathname === "/c"
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <FileEdit className="h-4 w-4" />
-                  Content Improver
-                </div>
-              </Link>
-
-              <Link
-                to="/bulk"
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                  "hover:bg-muted/50",
-                  location.pathname === "/bulk"
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <Database className="h-4 w-4" />
-                  Bulk Generator
-                </div>
-              </Link>
-
-              <Link
-                to="/travel"
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                  "hover:bg-muted/50",
-                  location.pathname.startsWith("/travel")
+                  location.pathname === "/"
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  Travel Platform
+                  Home
+                </div>
+              </Link>
+
+              <Link
+                to="/trip"
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  "hover:bg-muted/50",
+                  location.pathname === "/trip"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Trip Builder
+                </div>
+              </Link>
+
+              <Link
+                to="/explore"
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  "hover:bg-muted/50",
+                  location.pathname.startsWith("/explore")
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <Compass className="h-4 w-4" />
+                  Explore
                 </div>
               </Link>
             </div>
