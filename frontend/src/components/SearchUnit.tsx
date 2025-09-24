@@ -40,7 +40,6 @@ interface SearchUnitProps {
   isFirst: boolean;
   isLatest: boolean;
   onSaveItem: (item: SavedItem) => void;
-  onThreadQuery: (query: string, context: string) => Promise<string>;
   savedItemIds?: Set<string>;
   onDelete?: (id: string) => void;
   showDelete?: boolean;
@@ -106,7 +105,6 @@ export function SearchUnit({
   isFirst: _isFirst,
   isLatest,
   onSaveItem,
-  onThreadQuery,
   savedItemIds = new Set(),
   onDelete,
   showDelete = false
@@ -114,7 +112,6 @@ export function SearchUnit({
   // Generate ads dynamically based on current query - no useState to ensure they update
   const ads = generateAds(cityName, unit.query);
   const unitRef = useRef<HTMLDivElement>(null);
-  const [activeThreads, setActiveThreads] = useState<Set<number>>(new Set());
 
   // Auto-scroll to latest unit
   useEffect(() => {
@@ -136,7 +133,6 @@ export function SearchUnit({
     return paragraphs.map((paragraph, index) => {
       const paragraphId = `${unit.id}-p-${index}`;
       const isSaved = savedItemIds.has(paragraphId);
-      const hasThread = activeThreads.has(index);
 
       // Skip very short paragraphs or headers
       if (paragraph.length < 50 || paragraph.startsWith('#')) {
@@ -150,17 +146,6 @@ export function SearchUnit({
         );
       }
 
-      const handleAskMore = () => {
-        setActiveThreads(prev => new Set([...prev, index]));
-      };
-
-      const handleCloseThread = () => {
-        setActiveThreads(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(index);
-          return newSet;
-        });
-      };
 
       return (
         <div key={index}>
@@ -168,9 +153,7 @@ export function SearchUnit({
             content={paragraph}
             queryContext={unit.query}
             onSave={onSaveItem}
-            onAskMore={hasThread ? undefined : handleAskMore}
             isSaved={isSaved}
-            showThread={hasThread}
           >
             <div
               dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(paragraph) }}
@@ -178,7 +161,6 @@ export function SearchUnit({
             />
           </SaveableContent>
 
-          {/* Threaded queries removed - feature deprecated */}
         </div>
       );
     });

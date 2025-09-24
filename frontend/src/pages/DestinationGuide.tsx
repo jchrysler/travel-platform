@@ -115,10 +115,6 @@ export default function DestinationGuide() {
     }
   };
 
-  const handleThreadQuery = async (_query: string, _context: string): Promise<string> => {
-    // For guides, we don't support threading - return empty
-    return "Threading is not available in saved guides. Please visit the destination page to ask new questions.";
-  };
 
   const handleSaveTitle = () => {
     if (guide && editedTitle.trim() && editedTitle !== guide.title) {
@@ -344,7 +340,6 @@ export default function DestinationGuide() {
                   isFirst={false}
                   isLatest={false}
                   onSaveItem={handleSaveItem}
-                  onThreadQuery={handleThreadQuery}
                   savedItemIds={savedItemIds}
                 />
               </div>
