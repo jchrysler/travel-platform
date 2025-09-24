@@ -3,7 +3,7 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
 import { SaveableContent, SavedItem } from "./SaveableContent";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 interface PlaceResult {
   name: string;
