@@ -9,6 +9,12 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.runnables import RunnableConfig
+
+# Provide sane defaults for optional services used by LangGraph tooling.
+os.environ.setdefault(
+    "DATABASE_URI",
+    os.getenv("DATABASE_URL", "sqlite:///./article_generator.db"),
+)
 # CompiledGraph import removed - not needed
 from agent.travel_research_graph import graph
 from agent.travel_api import create_travel_routes
