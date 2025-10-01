@@ -1,4 +1,6 @@
+import logging
 import os
+from functools import lru_cache
 
 from agent.tools_and_schemas import SearchQueryList, Reflection
 from dotenv import load_dotenv
@@ -38,11 +40,21 @@ from agent.utils import (
 
 load_dotenv()
 
-if os.getenv("GEMINI_API_KEY") is None:
-    raise ValueError("GEMINI_API_KEY is not set")
+logger = logging.getLogger(__name__)
 
-# Used for Google Search API
-genai_client = Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+def _require_gemini_api_key() -> str:
+    """Return the Gemini API key or raise a clear runtime error."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is not set; configure it in the environment before starting the agent.")
+    return api_key
+
+
+@lru_cache(maxsize=1)
+def _get_genai_client() -> Client:
+    """Lazily create a Gemini client for Google Search access."""
+    return Client(api_key=_require_gemini_api_key())
 
 
 # Nodes
@@ -70,7 +82,7 @@ def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerati
         model=configurable.query_generator_model,
         temperature=1.0,
         max_retries=2,
-        api_key=os.getenv("GEMINI_API_KEY"),
+        api_key=_require_gemini_api_key(),
     )
     structured_llm = llm.with_structured_output(SearchQueryList)
 
@@ -122,22 +134,42 @@ def web_research(state: WebSearchState, config: RunnableConfig) -> OverallState:
     )
 
     # Uses the google genai client as the langchain client doesn't return grounding metadata
-    response = genai_client.models.generate_content(
-        model=configurable.query_generator_model,
-        contents=formatted_prompt,
-        config={
-            "tools": [{"google_search": {}}],
-            "temperature": 0,
-        },
-    )
-    # resolve the urls to short urls for saving tokens and time
-    resolved_urls = resolve_urls(
-        response.candidates[0].grounding_metadata.grounding_chunks, state["id"]
-    )
-    # Gets the citations and adds them to the generated text
-    citations = get_citations(response, resolved_urls)
-    modified_text = insert_citation_markers(response.text, citations)
-    sources_gathered = [item for citation in citations for item in citation["segments"]]
+    try:
+        client = _get_genai_client()
+        response = client.models.generate_content(
+            model=configurable.query_generator_model,
+            contents=formatted_prompt,
+            config={
+                "tools": [{"google_search": {}}],
+                "temperature": 0,
+            },
+        )
+    except Exception as exc:  # pragma: no cover - network failure path
+        logger.exception("Google Search tool invocation failed: %s", exc)
+        return {
+            "sources_gathered": [],
+            "search_query": [state["search_query"]],
+            "web_research_result": ["Google Search request failed; proceeding with available information."],
+        }
+
+    candidate = response.candidates[0] if getattr(response, "candidates", None) else None
+    raw_text = getattr(response, "text", "") or ""
+    if not raw_text and candidate is not None:
+        raw_text = getattr(candidate, "output_text", "") or ""
+
+    sources_gathered = []
+    citations = []
+    grounding_metadata = getattr(candidate, "grounding_metadata", None) if candidate else None
+    grounding_chunks = getattr(grounding_metadata, "grounding_chunks", None) if grounding_metadata else None
+
+    if grounding_chunks:
+        resolved_urls = resolve_urls(grounding_chunks, state["id"])
+        citations = get_citations(response, resolved_urls)
+        if raw_text:
+            raw_text = insert_citation_markers(raw_text, citations)
+        sources_gathered = [item for citation in citations for item in citation["segments"]]
+
+    modified_text = raw_text or "No research content returned from Google Search."
 
     return {
         "sources_gathered": sources_gathered,
@@ -179,7 +211,7 @@ def reflection(state: OverallState, config: RunnableConfig) -> ReflectionState:
         model=reasoning_model,
         temperature=1.0,
         max_retries=2,
-        api_key=os.getenv("GEMINI_API_KEY"),
+        api_key=_require_gemini_api_key(),
     )
     result = llm.with_structured_output(Reflection).invoke(formatted_prompt)
 
@@ -277,7 +309,7 @@ def finalize_answer(state: OverallState, config: RunnableConfig):
         model=reasoning_model,
         temperature=0,
         max_retries=2,
-        api_key=os.getenv("GEMINI_API_KEY"),
+        api_key=_require_gemini_api_key(),
     )
     result = llm.invoke(formatted_prompt)
     

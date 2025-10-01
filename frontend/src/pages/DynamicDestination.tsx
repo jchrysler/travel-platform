@@ -87,7 +87,7 @@ export default function DynamicDestination() {
     if (searchUnits.length === 0 && !draftId) {
       const newDraftId = `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       setDraftId(newDraftId);
-      navigate(`/travel/explore/${destination}/draft/${newDraftId}`, { replace: true });
+      navigate(`/explore/${destination}/draft/${newDraftId}`, { replace: true });
     }
 
     setIsSearching(true);
@@ -217,7 +217,7 @@ export default function DynamicDestination() {
     );
 
     // Navigate to the new guide
-    navigate(`/travel/explore/${destination}/${guide.slug}`);
+    navigate(`/explore/${destination}/${guide.slug}`);
   };
 
   // Popular queries for any destination
@@ -239,7 +239,7 @@ export default function DynamicDestination() {
       {/* Header */}
       <div className="mb-8">
         <Link
-          to="/travel/explore"
+          to="/explore"
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -288,7 +288,7 @@ export default function DynamicDestination() {
                 {existingGuides.map((guide) => (
                   <Link
                     key={guide.id}
-                    to={`/travel/explore/${destination}/${guide.slug}`}
+                    to={`/explore/${destination}/${guide.slug}`}
                     className="block p-3 rounded-lg border hover:border-primary transition-all group"
                   >
                     <div className="font-medium group-hover:text-primary">

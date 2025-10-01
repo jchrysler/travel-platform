@@ -14,15 +14,24 @@ from langchain_core.messages import HumanMessage
 
 load_dotenv()
 
-if os.getenv("GEMINI_API_KEY") is None:
-    raise ValueError("GEMINI_API_KEY is not set")
+
+def _require_gemini_api_key() -> str:
+    """Retrieve the Gemini API key or raise a helpful error."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="GEMINI_API_KEY is not configured. Set it in your environment and restart the service.",
+        )
+    return api_key
 
 
 async def generate_trip_itinerary(
     description: str,
     duration: int,
     interests: str = "",
-    travel_style: str = "comfort"
+    travel_style: str = "comfort",
+    api_key: str | None = None,
 ) -> AsyncIterator[str]:
     """Generate a detailed trip itinerary using Gemini"""
 
@@ -60,12 +69,14 @@ Include:
 Make the itinerary immersive, practical, and exciting. Balance must-see attractions with hidden gems.
 Include specific walking routes and approximate distances."""
 
+    key = api_key or _require_gemini_api_key()
+
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.0-flash-exp",
         temperature=0.8,
         max_retries=2,
         streaming=True,
-        api_key=os.getenv("GEMINI_API_KEY"),
+        api_key=key,
     )
 
     try:
@@ -81,7 +92,8 @@ Include specific walking routes and approximate distances."""
 
 async def explore_destination(
     city: str,
-    query: str
+    query: str,
+    api_key: str | None = None,
 ) -> AsyncIterator[str]:
     """Answer travel queries about a specific destination"""
 
@@ -108,12 +120,14 @@ If mentioning restaurants, attractions, or venues, provide:
 
 Make your response helpful, specific, and actionable."""
 
+    key = api_key or _require_gemini_api_key()
+
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.0-flash-exp",
         temperature=0.7,
         max_retries=2,
         streaming=True,
-        api_key=os.getenv("GEMINI_API_KEY"),
+        api_key=key,
     )
 
     try:
@@ -140,8 +154,10 @@ def create_travel_routes(app):
         if not description:
             raise HTTPException(status_code=400, detail="Trip description is required")
 
+        api_key = _require_gemini_api_key()
+
         return StreamingResponse(
-            generate_trip_itinerary(description, duration, interests, travel_style),
+            generate_trip_itinerary(description, duration, interests, travel_style, api_key=api_key),
             media_type="text/event-stream"
         )
 
@@ -154,8 +170,10 @@ def create_travel_routes(app):
         if not city or not query:
             raise HTTPException(status_code=400, detail="City and query are required")
 
+        api_key = _require_gemini_api_key()
+
         return StreamingResponse(
-            explore_destination(city, query),
+            explore_destination(city, query, api_key=api_key),
             media_type="text/event-stream"
         )
 

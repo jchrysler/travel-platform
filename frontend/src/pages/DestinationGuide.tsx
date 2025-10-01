@@ -63,7 +63,7 @@ export default function DestinationGuide() {
         incrementGuideViews(loadedGuide.id);
       } else {
         // Guide not found, redirect to destination page
-        navigate(`/travel/explore/${destination}`);
+        navigate(`/explore/${destination}`);
       }
     }
   }, [destination, guideSlug, navigate]);
@@ -90,7 +90,7 @@ export default function DestinationGuide() {
   const handleDeleteGuide = () => {
     if (guide && confirm(`Are you sure you want to delete "${guide.title}"?`)) {
       deleteGuide(guide.id);
-      navigate(`/travel/explore/${destination}`);
+      navigate(`/explore/${destination}`);
     }
   };
 
@@ -161,7 +161,7 @@ export default function DestinationGuide() {
       {/* Header */}
       <div className="mb-8">
         <Link
-          to={`/travel/explore/${destination}`}
+          to={`/explore/${destination}`}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
         >
           <ArrowLeft className="w-4 h-4" />

@@ -66,12 +66,22 @@ async def stream_graph(request: dict):
 
 # Determine the frontend build path
 def get_frontend_path():
-    # Try Docker path first, then fallback to relative path
-    docker_build_path = pathlib.Path("/deps/frontend/dist")
-    relative_build_path = pathlib.Path(__file__).parent.parent.parent / "frontend/dist"
-    
-    build_path = docker_build_path if docker_build_path.is_dir() else relative_build_path
-    return build_path
+    """Locate the built frontend assets regardless of deployment layout."""
+
+    resolved_file = pathlib.Path(__file__).resolve()
+    repo_root = resolved_file.parents[3]
+
+    candidates = [
+        pathlib.Path("/deps/frontend/dist"),  # Docker/Buildpacks layout
+        repo_root / "frontend/dist",         # Monorepo root layout
+    ]
+
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+
+    # Fallback to repo-root path so downstream logic still shows a helpful error
+    return candidates[-1]
 
 # Serve the React app for client-side routing
 # This needs to be a regular route, not a mount, to handle all /app/* paths

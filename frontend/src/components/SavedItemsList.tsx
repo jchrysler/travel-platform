@@ -197,7 +197,7 @@ export function SavedItemsList({
                       localStorage.setItem('saved_lists', JSON.stringify(existingLists));
 
                       // Generate URL and navigate
-                      const url = `/travel/explore/${destination}/saved/${listId}`;
+                      const url = `/explore/${destination}/saved/${listId}`;
                       const fullUrl = `${window.location.origin}${url}`;
 
                       // Copy to clipboard

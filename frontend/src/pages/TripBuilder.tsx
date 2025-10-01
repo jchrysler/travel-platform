@@ -121,7 +121,7 @@ export default function TripBuilder() {
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       {/* Header */}
       <div className="mb-8">
-        <Link to="/travel" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
+        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
           <ArrowLeft className="w-4 h-4" />
           Back to Travel Hub
         </Link>

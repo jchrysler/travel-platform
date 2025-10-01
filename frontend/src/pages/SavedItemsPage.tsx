@@ -56,7 +56,7 @@ export default function SavedItemsPage() {
         setEditedDescription(list.description || "");
       } else {
         // List not found, redirect
-        navigate(`/travel/explore/${destination}`);
+        navigate(`/explore/${destination}`);
       }
     }
   }, [listId, destination, navigate]);
@@ -145,7 +145,7 @@ export default function SavedItemsPage() {
       {/* Header */}
       <div className="mb-8">
         <Link
-          to={`/travel/explore/${destination}`}
+          to={`/explore/${destination}`}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
         >
           <ArrowLeft className="w-4 h-4" />

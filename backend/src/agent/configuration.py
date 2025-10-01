@@ -29,6 +29,13 @@ class Configuration(BaseModel):
         },
     )
 
+    reasoning_model: str = Field(
+        default="gemini-2.5-pro",
+        metadata={
+            "description": "Reasoning model used for reflection/finalization when none is provided in state."
+        },
+    )
+
     number_of_initial_queries: int = Field(
         default=3,
         metadata={"description": "The number of initial search queries to generate."},
