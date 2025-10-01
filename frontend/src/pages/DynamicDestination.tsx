@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Search, Sparkles, MapPin, BookOpen, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   type Guide
 } from "@/utils/guideStorage";
 import { refineQueryToTitle, generateSmartGuideTitle } from "@/utils/titleRefinement";
+import { getDestinationHeroContent } from "@/lib/destinationContent";
 
 interface SearchUnitData {
   id: string;
@@ -55,6 +56,25 @@ export default function DynamicDestination() {
   const [refinedTitles, setRefinedTitles] = useState<Map<string, string>>(new Map());
   const [smartTitle, setSmartTitle] = useState<{ title: string; subtitle: string } | null>(null);
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
+
+  const heroContent = getDestinationHeroContent(destination ?? "");
+  const readableDestination = destinationName || "this destination";
+  const combinedPopularQueries = Array.from(
+    new Set([
+      ...heroContent.suggestedSearches,
+      `Best things to do in ${readableDestination}`,
+      `Top restaurants in ${readableDestination}`,
+      `Hidden gems in ${readableDestination}`,
+      `${readableDestination} travel tips`,
+      `Best time to visit ${readableDestination}`,
+      `Where to stay in ${readableDestination}`,
+      `Local food to try in ${readableDestination}`,
+      `Day trips from ${readableDestination}`,
+      `${readableDestination} nightlife guide`,
+      `Budget travel ${readableDestination}`,
+    ]),
+  );
 
   useEffect(() => {
     if (destination) {
@@ -77,6 +97,12 @@ export default function DynamicDestination() {
     if (!customQuery.trim() || !destination) return;
     await performSearch(customQuery);
     setCustomQuery("");
+  };
+
+  const handleSuggestedSearch = async (query: string) => {
+    if (!query.trim()) return;
+    setCustomQuery("");
+    await performSearch(query);
   };
 
 
@@ -107,6 +133,9 @@ export default function DynamicDestination() {
       isStreaming: true
     };
     setSearchUnits(prev => [newUnit, ...prev]);
+    requestAnimationFrame(() => {
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
 
     try {
       const response = await fetch("/api/travel/explore", {
@@ -220,151 +249,221 @@ export default function DynamicDestination() {
     navigate(`/explore/${destination}/${guide.slug}`);
   };
 
-  // Popular queries for any destination
-  const popularQueries = [
-    `Best things to do in ${destinationName}`,
-    `Top restaurants in ${destinationName}`,
-    `Hidden gems in ${destinationName}`,
-    `${destinationName} travel tips`,
-    `Best time to visit ${destinationName}`,
-    `Where to stay in ${destinationName}`,
-    `Local food to try in ${destinationName}`,
-    `Day trips from ${destinationName}`,
-    `${destinationName} nightlife guide`,
-    `Budget travel ${destinationName}`
-  ];
-
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      {/* Header */}
-      <div className="mb-8">
-        <Link
-          to="/explore"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Explore Other Destinations
-        </Link>
-        <div className="flex items-center gap-3 mb-2">
-          <MapPin className="w-8 h-8 text-primary" />
-          <h1 className="text-4xl font-bold">{destinationName}</h1>
+    <div className="min-h-screen bg-background">
+      <section className="relative isolate overflow-hidden">
+        <div className="absolute inset-0">
+          <img
+            src={heroContent.imageUrl}
+            alt={heroContent.imageAlt}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-background" />
         </div>
-        <p className="text-muted-foreground">
-          Discover everything about {destinationName} with AI-powered recommendations
-        </p>
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Query Section */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Custom Search */}
-          <Card className="p-4">
-            <div className="flex gap-2">
-              <Input
-                value={customQuery}
-                onChange={(e) => setCustomQuery(e.target.value)}
-                placeholder={`Ask about ${destinationName}...`}
-                onKeyPress={(e) => e.key === "Enter" && handleCustomSearch()}
-                disabled={isSearching}
-              />
-              <Button
-                onClick={handleCustomSearch}
-                disabled={isSearching || !customQuery.trim()}
-                size="icon"
+        <div className="relative z-10">
+          <div className="container mx-auto flex min-h-[520px] max-w-6xl flex-col justify-end gap-8 px-4 py-24">
+            <div className="flex flex-col gap-6 text-white md:max-w-3xl">
+              <Link
+                to="/explore"
+                className="inline-flex w-fit items-center gap-2 text-sm font-medium text-white/70 transition hover:text-white"
               >
-                <Search className="w-4 h-4" />
-              </Button>
-            </div>
-          </Card>
+                <ArrowLeft className="h-4 w-4" />
+                Explore more destinations
+              </Link>
 
-          {/* Existing Guides */}
-          {existingGuides.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <BookOpen className="w-4 h-4" />
-                Existing Guides
-              </h3>
-              <div className="space-y-2">
-                {existingGuides.map((guide) => (
-                  <Link
-                    key={guide.id}
-                    to={`/explore/${destination}/${guide.slug}`}
-                    className="block p-3 rounded-lg border hover:border-primary transition-all group"
+              <div className="flex items-center gap-2 text-sm uppercase tracking-wide text-white/70">
+                <MapPin className="h-4 w-4" />
+                {destinationName}
+              </div>
+
+              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
+                {heroContent.title}
+              </h1>
+              <p className="text-xl font-medium text-white/85">{heroContent.subtitle}</p>
+              <p className="text-base text-white/80 md:text-lg">
+                {heroContent.description}
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                {heroContent.highlights.map((highlight) => (
+                  <span
+                    key={highlight}
+                    className="rounded-full border border-white/30 bg-white/10 px-4 py-1 text-sm text-white/85 backdrop-blur"
                   >
-                    <div className="font-medium group-hover:text-primary">
-                      {guide.title}
-                    </div>
-                    {(guide.subtitle || guide.description) && (
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {guide.subtitle || guide.description}
-                      </div>
-                    )}
-                    <div className="text-xs text-muted-foreground mt-2">
-                      {guide.views} views • {guide.queries.length} topics
-                    </div>
-                  </Link>
+                    {highlight}
+                  </span>
                 ))}
               </div>
-            </div>
-          )}
 
-          {/* Removed inline Create Guide - now using floating button */}
-
-          {/* Popular Queries */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Popular Searches</h3>
-            <div className="space-y-2">
-              {popularQueries.slice(0, 5).map((query, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => performSearch(query)}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleCustomSearch();
+                }}
+                className="mt-2 flex flex-col gap-3 sm:flex-row"
+              >
+                <Input
+                  value={customQuery}
+                  onChange={(e) => setCustomQuery(e.target.value)}
+                placeholder={`What do you want to plan in ${readableDestination}?`}
                   disabled={isSearching}
-                  className="w-full text-left p-3 rounded-lg border hover:border-primary transition-all group text-sm"
+                  className="h-14 flex-1 border-white/30 bg-white/15 text-lg text-white placeholder:text-white/70 shadow-lg backdrop-blur focus-visible:ring-white/80"
+                />
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={isSearching || !customQuery.trim()}
+                  className="h-14 px-8 text-lg shadow-lg"
                 >
-                  <div className="flex items-center justify-between">
-                    <span>{query}</span>
-                    <span className="text-muted-foreground group-hover:text-primary transition-colors">
-                      →
-                    </span>
-                  </div>
-                </button>
-              ))}
+                  <Search className="mr-2 h-5 w-5" />
+                  Start planning
+                </Button>
+              </form>
+
+              {heroContent.suggestedSearches.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 text-sm text-white/70">
+                  <span className="text-xs uppercase tracking-wide text-white/50">Try:</span>
+                  {heroContent.suggestedSearches.map((query) => (
+                    <Button
+                      key={query}
+                      type="button"
+                      variant="secondary"
+                      onClick={() => handleSuggestedSearch(query)}
+                      disabled={isSearching}
+                      className="border-white/20 bg-white/15 text-white hover:bg-white/25"
+                    >
+                      {query}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Results Section */}
-        <div className="lg:col-span-2">
-          <div className="space-y-4">
-            {searchUnits.map((unit, index) => (
-              <SearchUnit
-                key={unit.id}
-                unit={unit}
-                cityName={destinationName}
-                isFirst={index === searchUnits.length - 1}
-                isLatest={index === 0 && unit.id === currentStreamingId}
-                onSaveItem={handleSaveItem}
-                savedItemIds={savedItemIds}
-                onDelete={handleDeleteSearch}
-                showDelete={searchUnits.length > 0}
-              />
-            ))}
-
-            {/* Empty State */}
-            {searchUnits.length === 0 && !isSearching && (
-              <Card className="p-12 text-center">
-                <Sparkles className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">
-                  Start Exploring {destinationName}
-                </h3>
-                <p className="text-muted-foreground">
-                  Ask any question or choose from popular searches to discover the best of {destinationName}
+      <section ref={resultsRef} className="relative z-10 -mt-16 pb-24">
+        <div className="container mx-auto max-w-6xl px-4">
+          <div className="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
+            <div className="space-y-6">
+              <Card className="p-6 shadow-xl">
+                <h2 className="text-xl font-semibold">Plan your perfect {readableDestination} moment</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Ask anything specific—restaurants, day trips, hidden spots—and we will stream back a detailed plan.
                 </p>
+                <div className="mt-4 flex gap-2">
+                  <Input
+                    value={customQuery}
+                    onChange={(e) => setCustomQuery(e.target.value)}
+                    placeholder={`Ask about ${readableDestination}...`}
+                    onKeyDown={(e) => e.key === "Enter" && handleCustomSearch()}
+                    disabled={isSearching}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleCustomSearch}
+                    disabled={isSearching || !customQuery.trim()}
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {combinedPopularQueries.slice(0, 6).map((query) => (
+                    <button
+                      key={query}
+                      type="button"
+                      onClick={() => handleSuggestedSearch(query)}
+                      disabled={isSearching}
+                      className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium transition hover:border-primary hover:text-primary"
+                    >
+                      {query}
+                    </button>
+                  ))}
+                </div>
               </Card>
-            )}
+
+              {existingGuides.length > 0 && (
+                <div>
+                  <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+                    <BookOpen className="h-4 w-4 text-primary" />
+                    Hand-crafted guides
+                  </h3>
+                  <div className="space-y-2">
+                    {existingGuides.map((guide) => (
+                      <Link
+                        key={guide.id}
+                        to={`/explore/${destination}/${guide.slug}`}
+                        className="block rounded-lg border bg-card p-3 transition hover:border-primary"
+                      >
+                        <div className="font-medium">{guide.title}</div>
+                        {(guide.subtitle || guide.description) && (
+                          <div className="mt-1 text-sm text-muted-foreground">
+                            {guide.subtitle || guide.description}
+                          </div>
+                        )}
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          {guide.views} views • {guide.queries.length} topics
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold">Popular sparks</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Tap to jump-start ideas locals are searching for right now.
+                </p>
+                <div className="mt-4 space-y-2">
+                  {combinedPopularQueries.slice(0, 8).map((query) => (
+                    <button
+                      key={query}
+                      onClick={() => handleSuggestedSearch(query)}
+                      disabled={isSearching}
+                      className="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition hover:border-primary hover:text-primary"
+                    >
+                      <span>{query}</span>
+                      <span className="text-muted-foreground">→</span>
+                    </button>
+                  ))}
+                </div>
+              </Card>
+            </div>
+
+            <div className="lg:col-span-1 lg:col-start-2">
+              <div className="space-y-4">
+                {searchUnits.map((unit, index) => (
+                  <SearchUnit
+                    key={unit.id}
+                    unit={unit}
+                    cityName={destinationName}
+                    isFirst={index === searchUnits.length - 1}
+                    isLatest={index === 0 && unit.id === currentStreamingId}
+                    onSaveItem={handleSaveItem}
+                    savedItemIds={savedItemIds}
+                    onDelete={handleDeleteSearch}
+                    showDelete={searchUnits.length > 0}
+                  />
+                ))}
+
+                {searchUnits.length === 0 && !isSearching && (
+                  <Card className="p-12 text-center">
+                    <Sparkles className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">
+                      Start exploring {readableDestination}
+                    </h3>
+                    <p className="text-muted-foreground">
+                      Ask any question or tap a suggested idea to generate a ready-to-run plan.
+                    </p>
+                  </Card>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Saved Items Sidebar */}
       <SavedItemsList
