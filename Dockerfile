@@ -45,7 +45,7 @@ RUN cd /deps/backend && \
     PYTHONDONTWRITEBYTECODE=1 UV_SYSTEM_PYTHON=1 uv pip install --system -c /api/constraints.txt -e .
 # -- End of local dependencies install --
 ENV LANGGRAPH_HTTP='{"app": "/deps/backend/src/agent/app.py:app"}'
-ENV LANGSERVE_GRAPHS='{"agent": "/deps/backend/src/agent/graph.py:graph"}'
+ENV LANGSERVE_GRAPHS='{"travel-research": "/deps/backend/src/agent/travel_research_graph.py:graph"}'
 
 # -- Ensure user deps didn't inadvertently overwrite langgraph-api
 # Create all required directories that the langgraph-api package expects
