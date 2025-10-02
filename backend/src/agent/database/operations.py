@@ -359,7 +359,7 @@ def save_research_guide(
         quality_score=quality_score,
         state=guide_state,
         content_signature=content_signature,
-        metadata={
+        extra_metadata={
             "total_searches": total_searches,
             "submitted_at": datetime.utcnow().isoformat(),
             **(metadata or {}),

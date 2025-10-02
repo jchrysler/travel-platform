@@ -193,7 +193,7 @@ class ResearchGuide(Base):
     state = Column(SQLEnum(GuideState, name="guide_state"), default=GuideState.needs_review, nullable=False)
 
     content_signature = Column(String(64), unique=True, nullable=False)
-    metadata = Column(JSON)
+    extra_metadata = Column(JSON)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
