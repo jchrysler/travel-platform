@@ -62,21 +62,19 @@ export default function DynamicDestination() {
 
   const heroContent = getDestinationHeroContent(destination ?? "");
   const readableDestination = destinationName || "this destination";
-  const combinedPopularQueries = Array.from(
-    new Set([
-      ...heroContent.suggestedSearches,
-      `Best things to do in ${readableDestination}`,
-      `Top restaurants in ${readableDestination}`,
-      `Hidden gems in ${readableDestination}`,
-      `${readableDestination} travel tips`,
-      `Best time to visit ${readableDestination}`,
-      `Where to stay in ${readableDestination}`,
-      `Local food to try in ${readableDestination}`,
-      `Day trips from ${readableDestination}`,
-      `${readableDestination} nightlife guide`,
-      `Budget travel ${readableDestination}`,
-    ]),
-  );
+  const fallbackPrimaryQueries = [
+    `Best restaurants in ${readableDestination}`,
+    `Top hotels to stay in ${readableDestination}`,
+    `How to spend 3 days in ${readableDestination}`,
+    `Family-friendly activities in ${readableDestination}`,
+    `Hidden gems around ${readableDestination}`,
+    `Romantic evening ideas in ${readableDestination}`,
+  ];
+  const primaryQueries = heroContent.primaryQueries?.length
+    ? heroContent.primaryQueries
+    : fallbackPrimaryQueries;
+  const bucketQueries = heroContent.searchBuckets?.flatMap((bucket) => bucket.queries) ?? [];
+  const combinedPopularQueries = Array.from(new Set([...primaryQueries, ...bucketQueries]));
 
   const featuredPromotions = [
     {
@@ -338,10 +336,10 @@ export default function DynamicDestination() {
                 </Button>
               </form>
 
-              {heroContent.suggestedSearches.length > 0 && (
+              {primaryQueries.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 text-sm text-white/70">
                   <span className="text-xs uppercase tracking-wide text-white/50">Try:</span>
-                  {heroContent.suggestedSearches.map((query) => (
+                  {primaryQueries.slice(0, 6).map((query) => (
                     <Button
                       key={query}
                       type="button"
@@ -397,7 +395,7 @@ export default function DynamicDestination() {
                     </Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {combinedPopularQueries.slice(0, 6).map((query) => (
+                    {primaryQueries.slice(0, 6).map((query) => (
                       <button
                         key={query}
                         type="button"
@@ -443,19 +441,29 @@ export default function DynamicDestination() {
               <Card className="p-6">
                 <h3 className="text-lg font-semibold">Popular sparks</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Tap to jump-start ideas locals are searching for right now.
+                  Tap a theme to load localized answers instantly.
                 </p>
-                <div className="mt-4 space-y-2">
-                  {combinedPopularQueries.slice(0, 8).map((query) => (
-                    <button
-                      key={query}
-                      onClick={() => handleSuggestedSearch(query)}
-                      disabled={isSearching}
-                      className="flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left text-sm font-medium transition hover:border-primary hover:text-primary"
-                    >
-                      <span>{query}</span>
-                      <span className="text-muted-foreground">→</span>
-                    </button>
+                <div className="mt-4 space-y-4">
+                  {(heroContent.searchBuckets?.length ? heroContent.searchBuckets : [
+                    { label: "Ideas", queries: combinedPopularQueries.slice(0, 6) },
+                  ]).map((bucket) => (
+                    <div key={bucket.label} className="rounded-xl border border-border/60 bg-muted/40 p-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {bucket.label}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {bucket.queries.map((query) => (
+                          <button
+                            key={query}
+                            onClick={() => handleSuggestedSearch(query)}
+                            disabled={isSearching}
+                            className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium transition hover:border-primary hover:text-primary"
+                          >
+                            {query}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </Card>
