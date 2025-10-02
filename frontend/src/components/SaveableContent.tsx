@@ -102,25 +102,22 @@ export function SaveableContent({
   return (
     <div
       ref={containerRef}
-      className={`saveable-content relative transition-all duration-200 rounded-lg ${
-        isHovered ? 'bg-primary/5' : ''
-      } ${
-        isMobile ? 'cursor-pointer' : ''
-      }`}
+      className={`saveable-content relative rounded-xl border border-transparent transition-colors duration-200 ${
+        isHovered ? 'bg-primary/5 border-primary/20 shadow-sm' : 'bg-transparent'
+      } ${isMobile ? 'cursor-pointer' : ''}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleTap}
-      style={{
-        padding: isHovered || showButtons || showThread ? '12px' : '0px',
-        margin: isHovered || showButtons || showThread ? '-12px' : '0px'
-      }}
+      style={{ padding: isMobile ? '12px' : '16px 72px 16px 20px' }}
     >
       {children}
 
       {showButtons && (
-        <div className={`absolute ${
-          isMobile ? 'right-2 top-2 flex gap-2' : '-right-14 top-1/2 -translate-y-1/2 space-y-2'
-        } opacity-0 animate-fade-in z-10`}>
+        <div
+          className={`absolute ${
+            isMobile ? 'right-2 top-2 flex gap-2' : 'right-4 top-1/2 -translate-y-1/2 space-y-2'
+          } opacity-0 animate-fade-in z-10`}
+        >
           <Button
             size={isMobile ? "icon" : "sm"}
             variant={saved ? "default" : "secondary"}

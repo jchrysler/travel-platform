@@ -137,10 +137,9 @@ export function SearchUnit({
       // Skip very short paragraphs or headers
       if (paragraph.length < 50 || paragraph.startsWith('#')) {
         return (
-          <div key={index}>
+          <div key={index} className="leading-relaxed text-[15px] [&>p]:mb-3 [&>ul]:ml-4 [&>ul]:my-3 [&>ul>li]:ml-1 [&>ul>li]:py-1">
             <div
               dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(paragraph) }}
-              className="mb-4"
             />
           </div>
         );
@@ -148,7 +147,7 @@ export function SearchUnit({
 
 
       return (
-        <div key={index}>
+        <div key={index} className="space-y-3">
           <SaveableContent
             content={paragraph}
             queryContext={unit.query}
@@ -157,10 +156,9 @@ export function SearchUnit({
           >
             <div
               dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(paragraph) }}
-              className="mb-4"
+              className="leading-relaxed text-[15px] [&>p]:mb-3 [&>ul]:ml-4 [&>ul]:my-3 [&>ul>li]:ml-1 [&>ul>li]:py-1"
             />
           </SaveableContent>
-
         </div>
       );
     });
