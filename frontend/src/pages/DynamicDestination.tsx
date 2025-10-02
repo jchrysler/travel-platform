@@ -86,7 +86,11 @@ export default function DynamicDestination() {
         }
         const data = await response.json();
         if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
-          setServerSuggestions(data.suggestions.map((s: string) => s.trim()));
+          const cleaned = data.suggestions
+            .map((s: string) => s.replace(/^```json/i, "").replace(/```$/, "").trim())
+            .map((s: string) => s.replace(/^"|"$/g, "").trim())
+            .filter((s: string) => s.length > 0 && !s.startsWith("["));
+          setServerSuggestions(cleaned);
         } else {
           setServerSuggestions(null);
         }
@@ -437,11 +441,7 @@ export default function DynamicDestination() {
           <div className="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
             <div className="space-y-6">
               <Card className="overflow-hidden border-none bg-gradient-to-br from-primary/20 via-primary/10 to-background p-0 shadow-2xl">
-                <div className="space-y-5 px-6 py-6">
-                  <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-primary-foreground/80">
-                    <Sparkles className="h-4 w-4" />
-                    Intelligent trip composer
-                  </div>
+              <div className="space-y-5 px-6 py-6">
                   <div className="space-y-3">
                     <h2 className="text-2xl font-semibold text-primary-foreground">
                       Plan your perfect {readableDestination} moment
