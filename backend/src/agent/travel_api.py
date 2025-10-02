@@ -92,6 +92,29 @@ def _humanize_slug(slug: str) -> str:
     return slug.replace("-", " ").title()
 
 
+def _strip_code_fences(text: str) -> str:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = stripped[3:]
+        stripped = stripped.lstrip()
+        if stripped.lower().startswith("json"):
+            stripped = stripped[4:]
+        stripped = stripped.lstrip()
+        if stripped.endswith("```"):
+            stripped = stripped[:-3]
+    return stripped.strip()
+
+
+def _clean_suggestion_text(text: str) -> str:
+    cleaned = _strip_code_fences(text)
+    cleaned = cleaned.replace("\u201d", '"').replace("\u201c", '"')
+    cleaned = cleaned.replace("\u2019", "'")
+    cleaned = cleaned.lstrip("-• ").strip()
+    cleaned = cleaned.strip('"\'')
+    cleaned = cleaned.rstrip(",")
+    return cleaned.strip()
+
+
 async def _generate_destination_suggestions(destination: str, api_key: str) -> List[str]:
     """Call Gemini to generate destination-specific suggested searches."""
 
@@ -111,21 +134,26 @@ async def _generate_destination_suggestions(destination: str, api_key: str) -> L
     )
 
     result = await llm.ainvoke(prompt)
+    raw_content = _strip_code_fences(result.content)
 
     try:
-        suggestions = json.loads(result.content.strip())
-        if isinstance(suggestions, list):
+        parsed = json.loads(raw_content)
+        if isinstance(parsed, list):
             cleaned = [
-                str(item).strip()
-                for item in suggestions
-                if isinstance(item, str) and item.strip()
+                _clean_suggestion_text(item)
+                for item in parsed
+                if isinstance(item, str) and _clean_suggestion_text(item)
             ]
-            return cleaned[:8]
+            if cleaned:
+                return cleaned[:8]
     except (json.JSONDecodeError, AttributeError):
         pass
 
-    # Fallback: split by newline
-    fallback = [line.strip("-• ") for line in result.content.splitlines() if line.strip()]
+    fallback = []
+    for line in raw_content.splitlines():
+        cleaned = _clean_suggestion_text(line)
+        if cleaned:
+            fallback.append(cleaned)
     return fallback[:8]
 
 

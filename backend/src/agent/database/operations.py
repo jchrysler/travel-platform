@@ -22,6 +22,19 @@ from .models import (
 )
 
 
+def _sanitize_suggestions(values: List[str]) -> List[str]:
+    cleaned = []
+    for value in values:
+        if not isinstance(value, str):
+            continue
+        text = value.strip()
+        text = text.strip('"\'')
+        text = text.strip()
+        if text and text not in cleaned:
+            cleaned.append(text)
+    return cleaned
+
+
 class GuideSaveDecision(str, Enum):
     """Result of attempting to store a research guide."""
 
@@ -418,16 +431,18 @@ def store_destination_suggestions(
 ) -> DestinationSuggestion:
     record = get_destination_suggestions(db, destination_slug=destination_slug)
 
+    cleaned_suggestions = _sanitize_suggestions(suggestions)
+
     if record:
         record.destination_name = destination_name
-        record.suggestions = suggestions
+        record.suggestions = cleaned_suggestions
         record.prompt_version = prompt_version
         record.usage_metadata = metadata or {}
     else:
         record = DestinationSuggestion(
             destination_slug=destination_slug.lower(),
             destination_name=destination_name,
-            suggestions=suggestions,
+            suggestions=cleaned_suggestions,
             prompt_version=prompt_version,
             usage_metadata=metadata or {},
         )

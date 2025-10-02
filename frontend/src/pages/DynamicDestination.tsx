@@ -87,10 +87,12 @@ export default function DynamicDestination() {
         const data = await response.json();
         if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
           const cleaned = data.suggestions
-            .map((s: string) => s.replace(/^```json/i, "").replace(/```$/, "").trim())
-            .map((s: string) => s.replace(/^"|"$/g, "").trim())
-            .filter((s: string) => s.length > 0 && !s.startsWith("["));
-          setServerSuggestions(cleaned);
+            .map((s: string) => s.replace(/^```json/i, "").replace(/```$/i, "").trim())
+            .map((s: string) => s.replace(/^"/, '').replace(/"$/, '').replace(/,$/, '').trim())
+            .map((s: string) => s.replace(/^\[/, '').replace(/\]$/, '').trim())
+            .map((s: string) => s.replace(/^[-•\s]+/, '').trim())
+            .filter((s: string) => s.length > 0);
+          setServerSuggestions(cleaned.length ? cleaned : null);
         } else {
           setServerSuggestions(null);
         }
@@ -440,50 +442,6 @@ export default function DynamicDestination() {
         <div className="container mx-auto max-w-6xl px-4">
           <div className="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
             <div className="space-y-6">
-              <Card className="overflow-hidden border-none bg-gradient-to-br from-primary/20 via-primary/10 to-background p-0 shadow-2xl">
-              <div className="space-y-5 px-6 py-6">
-                  <div className="space-y-3">
-                    <h2 className="text-2xl font-semibold text-primary-foreground">
-                      Plan your perfect {readableDestination} moment
-                    </h2>
-                    <p className="text-sm text-primary-foreground/80">
-                      Ask for anything—from progressive dinners to sunrise hikes—and we will stitch together the logistics, timing, and insider tips in seconds.
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <Input
-                      value={customQuery}
-                      onChange={(e) => setCustomQuery(e.target.value)}
-                      placeholder={`Ask about ${readableDestination}...`}
-                      onKeyDown={(e) => e.key === "Enter" && handleCustomSearch()}
-                      disabled={isSearching}
-                      className="h-12 flex-1 border-white/20 bg-white/20 text-base text-primary-foreground placeholder:text-primary-foreground/70 backdrop-blur"
-                    />
-                    <Button
-                      onClick={handleCustomSearch}
-                      disabled={isSearching || !customQuery.trim()}
-                      className="h-12 px-6 text-base"
-                    >
-                      <Search className="mr-2 h-4 w-4" />
-                      Generate
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {primaryQueries.slice(0, 6).map((query) => (
-                      <button
-                        key={query}
-                        type="button"
-                        onClick={() => handleSuggestedSearch(query)}
-                        disabled={isSearching}
-                        className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-medium text-primary-foreground/90 transition hover:bg-white/20"
-                      >
-                        {query}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </Card>
-
               {existingGuides.length > 0 && (
                 <div>
                   <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold">
