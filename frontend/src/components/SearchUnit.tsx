@@ -130,23 +130,28 @@ export function SearchUnit({
     // Split content into paragraphs for individual saving
     const paragraphs = content.split('\n\n').filter(p => p.trim().length > 0);
 
-    return paragraphs.map((paragraph, index) => {
+    return paragraphs.reduce<JSX.Element[]>((acc, paragraph, index) => {
       const paragraphId = `${unit.id}-p-${index}`;
       const isSaved = savedItemIds.has(paragraphId);
 
-      // Skip very short paragraphs or headers
-      if (paragraph.length < 50 || paragraph.startsWith('#')) {
-        return (
-          <div key={index} className="leading-relaxed text-[15px] [&>p]:mb-3 [&>ul]:ml-4 [&>ul]:my-3 [&>ul>li]:ml-1 [&>ul>li]:py-1">
-            <div
-              dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(paragraph) }}
-            />
-          </div>
-        );
+      const normalized = paragraph.trim();
+      if (!normalized) {
+        return acc;
       }
 
+      const isHeaderOnly = normalized.startsWith('#');
+      const elementKey = `${unit.id}-chunk-${index}`;
 
-      return (
+      if (isHeaderOnly) {
+        acc.push(
+          <div key={elementKey} className="leading-relaxed text-[15px] [&>p]:mb-3">
+            <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(normalized) }} />
+          </div>
+        );
+        return acc;
+      }
+
+      acc.push(
         <div key={index} className="space-y-3">
           <SaveableContent
             content={paragraph}
@@ -161,7 +166,9 @@ export function SearchUnit({
           </SaveableContent>
         </div>
       );
-    });
+
+      return acc;
+    }, []);
   };
 
   return (
