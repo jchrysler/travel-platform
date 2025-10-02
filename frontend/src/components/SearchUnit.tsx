@@ -3,7 +3,7 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
 import { SaveableContent, SavedItem } from "./SaveableContent";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, ReactElement } from "react";
 
 interface PlaceResult {
   name: string;
@@ -130,7 +130,7 @@ export function SearchUnit({
     // Split content into paragraphs for individual saving
     const paragraphs = content.split('\n\n').filter(p => p.trim().length > 0);
 
-    return paragraphs.reduce<JSX.Element[]>((acc, paragraph, index) => {
+    return paragraphs.reduce<ReactElement[]>((acc, paragraph, index) => {
       const paragraphId = `${unit.id}-p-${index}`;
       const isSaved = savedItemIds.has(paragraphId);
 
