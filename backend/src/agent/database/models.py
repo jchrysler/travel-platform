@@ -231,3 +231,21 @@ class ResearchGuideSection(Base):
 
 # Helpful indexes for reporting/exports
 Index("ix_guides_state_destination", ResearchGuide.state, ResearchGuide.destination_slug)
+
+
+class DestinationSuggestion(Base):
+    """Cached Gemini-generated suggested searches per destination."""
+
+    __tablename__ = "destination_suggestions"
+
+    id = Column(Integer, primary_key=True)
+    destination_slug = Column(String(128), unique=True, nullable=False, index=True)
+    destination_name = Column(String(128), nullable=False)
+
+    suggestions = Column(JSON, nullable=False)
+    prompt_version = Column(String(32), default="v1")
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    usage_metadata = Column(JSON)

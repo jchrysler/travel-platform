@@ -60,6 +60,8 @@ export default function DynamicDestination() {
   const [smartTitle, setSmartTitle] = useState<{ title: string; subtitle: string } | null>(null);
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const [serverSuggestions, setServerSuggestions] = useState<string[] | null>(null);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
   const heroContent = getDestinationHeroContent(destination ?? "");
   const readableDestination = destinationName || "this destination";
@@ -71,9 +73,41 @@ export default function DynamicDestination() {
     `Hidden gems around ${readableDestination}`,
     `Romantic evening ideas in ${readableDestination}`,
   ];
-  const primaryQueries = heroContent.primaryQueries?.length
-    ? heroContent.primaryQueries
-    : fallbackPrimaryQueries;
+  useEffect(() => {
+    const controller = new AbortController();
+    async function fetchSuggestions() {
+      setSuggestionsLoading(true);
+      try {
+        const response = await fetch(`/api/travel/suggestions/${destinationSlug}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to load suggestions (${response.status})`);
+        }
+        const data = await response.json();
+        if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+          setServerSuggestions(data.suggestions.map((s: string) => s.trim()));
+        } else {
+          setServerSuggestions(null);
+        }
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === "AbortError")) {
+          console.warn("Suggestion load failed", err);
+        }
+        setServerSuggestions(null);
+      } finally {
+        setSuggestionsLoading(false);
+      }
+    }
+    fetchSuggestions();
+    return () => controller.abort();
+  }, [destinationSlug]);
+
+  const primaryQueries = (serverSuggestions && serverSuggestions.length > 0)
+    ? serverSuggestions
+    : heroContent.primaryQueries?.length
+      ? heroContent.primaryQueries
+      : fallbackPrimaryQueries;
   const bucketQueries = heroContent.searchBuckets?.flatMap((bucket) => bucket.queries) ?? [];
   const combinedPopularQueries = Array.from(new Set([...primaryQueries, ...bucketQueries]));
 
@@ -347,17 +381,6 @@ export default function DynamicDestination() {
                 {heroContent.description}
               </p>
 
-              <div className="flex flex-wrap gap-2">
-                {heroContent.highlights.map((highlight) => (
-                  <span
-                    key={highlight}
-                    className="rounded-full border border-white/30 bg-white/10 px-4 py-1 text-sm text-white/85 backdrop-blur"
-                  >
-                    {highlight}
-                  </span>
-                ))}
-              </div>
-
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -383,23 +406,27 @@ export default function DynamicDestination() {
                 </Button>
               </form>
 
-              {primaryQueries.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 text-sm text-white/70">
-                  <span className="text-xs uppercase tracking-wide text-white/50">Try:</span>
-                  {primaryQueries.slice(0, 6).map((query) => (
-                    <Button
-                      key={query}
-                      type="button"
-                      variant="secondary"
-                      onClick={() => handleSuggestedSearch(query)}
-                      disabled={isSearching}
-                      className="border-white/20 bg-white/15 text-white hover:bg-white/25"
-                    >
-                      {query}
-                    </Button>
-                  ))}
-                </div>
-              )}
+              <div className="min-h-[32px]">
+                {suggestionsLoading ? (
+                  <span className="text-sm text-white/70">Loading smart suggestions…</span>
+                ) : primaryQueries.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-white/70">
+                    <span className="text-xs uppercase tracking-wide text-white/50">Try:</span>
+                    {primaryQueries.slice(0, 6).map((query) => (
+                      <Button
+                        key={query}
+                        type="button"
+                        variant="secondary"
+                        onClick={() => handleSuggestedSearch(query)}
+                        disabled={isSearching}
+                        className="border-white/20 bg-white/15 text-white hover:bg-white/25"
+                      >
+                        {query}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
@@ -491,27 +518,33 @@ export default function DynamicDestination() {
                   Tap a theme to load localized answers instantly.
                 </p>
                 <div className="mt-4 space-y-4">
-                  {(heroContent.searchBuckets?.length ? heroContent.searchBuckets : [
-                    { label: "Ideas", queries: combinedPopularQueries.slice(0, 6) },
-                  ]).map((bucket) => (
-                    <div key={bucket.label} className="rounded-xl border border-border/60 bg-muted/40 p-3">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {bucket.label}
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {bucket.queries.map((query) => (
-                          <button
-                            key={query}
-                            onClick={() => handleSuggestedSearch(query)}
-                            disabled={isSearching}
-                            className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium transition hover:border-primary hover:text-primary"
-                          >
-                            {query}
-                          </button>
-                        ))}
-                      </div>
+                  {suggestionsLoading ? (
+                    <div className="rounded-xl border border-border/60 bg-muted/40 p-3 text-sm text-muted-foreground">
+                      Generating fresh ideas…
                     </div>
-                  ))}
+                  ) : (
+                    (heroContent.searchBuckets?.length ? heroContent.searchBuckets : [
+                      { label: "Ideas", queries: combinedPopularQueries.slice(0, 6) },
+                    ]).map((bucket) => (
+                      <div key={bucket.label} className="rounded-xl border border-border/60 bg-muted/40 p-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {bucket.label}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {bucket.queries.map((query) => (
+                            <button
+                              key={query}
+                              onClick={() => handleSuggestedSearch(query)}
+                              disabled={isSearching}
+                              className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium transition hover:border-primary hover:text-primary"
+                            >
+                              {query}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </Card>
 

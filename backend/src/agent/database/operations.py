@@ -18,6 +18,7 @@ from .models import (
     GuideState,
     ResearchGuide,
     ResearchGuideSection,
+    DestinationSuggestion,
 )
 
 
@@ -392,3 +393,58 @@ def save_research_guide(
         "quality_score": quality_score,
         "state": guide.state.value,
     }
+
+
+def get_destination_suggestions(
+    db: Session,
+    *,
+    destination_slug: str,
+) -> Optional[DestinationSuggestion]:
+    return (
+        db.query(DestinationSuggestion)
+        .filter(DestinationSuggestion.destination_slug == destination_slug.lower())
+        .first()
+    )
+
+
+def store_destination_suggestions(
+    db: Session,
+    *,
+    destination_name: str,
+    destination_slug: str,
+    suggestions: List[str],
+    prompt_version: str = "v1",
+    metadata: Optional[Dict[str, Any]] = None,
+) -> DestinationSuggestion:
+    record = get_destination_suggestions(db, destination_slug=destination_slug)
+
+    if record:
+        record.destination_name = destination_name
+        record.suggestions = suggestions
+        record.prompt_version = prompt_version
+        record.usage_metadata = metadata or {}
+    else:
+        record = DestinationSuggestion(
+            destination_slug=destination_slug.lower(),
+            destination_name=destination_name,
+            suggestions=suggestions,
+            prompt_version=prompt_version,
+            usage_metadata=metadata or {},
+        )
+        db.add(record)
+
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+def list_recent_guides(
+    db: Session,
+    *,
+    limit: int = 100,
+    state: Optional[GuideState] = None,
+) -> List[ResearchGuide]:
+    query = db.query(ResearchGuide).order_by(ResearchGuide.created_at.desc())
+    if state:
+        query = query.filter(ResearchGuide.state == state)
+    return query.limit(limit).all()

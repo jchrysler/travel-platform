@@ -5,6 +5,7 @@ Simple implementation using Gemini API directly for MVP
 
 import os
 import json
+from datetime import datetime
 from typing import Dict, Any, AsyncIterator, List, Optional
 from fastapi import HTTPException, Depends
 from fastapi.responses import StreamingResponse
@@ -15,7 +16,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from agent.database.config import get_db
-from agent.database.operations import save_research_guide, GuideSaveDecision
+from agent.database.models import GuideState
+from agent.database.operations import (
+    save_research_guide,
+    GuideSaveDecision,
+    get_destination_suggestions,
+    store_destination_suggestions,
+    list_recent_guides,
+)
 
 load_dotenv()
 
@@ -52,6 +60,23 @@ class GuideSaveResponse(BaseModel):
     reason: Optional[str] = None
 
 
+class DestinationSuggestionsResponse(BaseModel):
+    destination: str
+    destinationSlug: str = Field(..., alias="destination_slug")
+    suggestions: List[str]
+    cached: bool = False
+
+
+class AdminGuideSummary(BaseModel):
+    guide_id: str
+    destination: str
+    state: GuideState
+    quality_score: float
+    total_sections: int
+    total_word_count: int
+    created_at: datetime
+
+
 def _require_gemini_api_key() -> str:
     """Retrieve the Gemini API key or raise a helpful error."""
     api_key = os.getenv("GEMINI_API_KEY")
@@ -61,6 +86,47 @@ def _require_gemini_api_key() -> str:
             detail="GEMINI_API_KEY is not configured. Set it in your environment and restart the service.",
         )
     return api_key
+
+
+def _humanize_slug(slug: str) -> str:
+    return slug.replace("-", " ").title()
+
+
+async def _generate_destination_suggestions(destination: str, api_key: str) -> List[str]:
+    """Call Gemini to generate destination-specific suggested searches."""
+
+    prompt = (
+        "You are an expert travel concierge. Provide 8 highly engaging search queries "
+        "a traveler might ask when planning a trip to {city}. Each query should be unique, actionable, "
+        "and reflect current traveler intent across categories like restaurants, hotels, experiences, events, "
+        "and whimsical ideas. Keep them under 80 characters, avoid duplicates, and do not number them. "
+        "Return them as a JSON array of strings."
+    ).format(city=destination)
+
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash-exp",
+        temperature=0.6,
+        max_retries=2,
+        api_key=api_key,
+    )
+
+    result = await llm.ainvoke(prompt)
+
+    try:
+        suggestions = json.loads(result.content.strip())
+        if isinstance(suggestions, list):
+            cleaned = [
+                str(item).strip()
+                for item in suggestions
+                if isinstance(item, str) and item.strip()
+            ]
+            return cleaned[:8]
+    except (json.JSONDecodeError, AttributeError):
+        pass
+
+    # Fallback: split by newline
+    fallback = [line.strip("-• ") for line in result.content.splitlines() if line.strip()]
+    return fallback[:8]
 
 
 async def generate_trip_itinerary(
@@ -255,5 +321,58 @@ def create_travel_routes(app):
             reason=info.get("reason"),
         )
         return response
+
+    @app.get("/api/travel/suggestions/{destination_slug}", response_model=DestinationSuggestionsResponse)
+    async def get_suggestions(destination_slug: str, db: Session = Depends(get_db)) -> DestinationSuggestionsResponse:
+        record = get_destination_suggestions(db, destination_slug=destination_slug)
+        if record:
+            return DestinationSuggestionsResponse(
+                destination=record.destination_name,
+                destination_slug=record.destination_slug,
+                suggestions=record.suggestions,
+                cached=True,
+            )
+
+        api_key = _require_gemini_api_key()
+        destination_name = _humanize_slug(destination_slug)
+
+        suggestions = await _generate_destination_suggestions(destination_name, api_key)
+        if not suggestions:
+            suggestions = [
+                f"Best things to do in {destination_name}",
+                f"Where to stay in {destination_name}",
+                f"Top restaurants in {destination_name}",
+            ]
+
+        store_destination_suggestions(
+            db,
+            destination_name=destination_name,
+            destination_slug=destination_slug,
+            suggestions=suggestions,
+            metadata={"generated_at": datetime.utcnow().isoformat()},
+        )
+
+        return DestinationSuggestionsResponse(
+            destination=destination_name,
+            destination_slug=destination_slug,
+            suggestions=suggestions,
+            cached=False,
+        )
+
+    @app.get("/admin/guides", response_model=List[AdminGuideSummary])
+    async def list_guides(state: Optional[GuideState] = None, db: Session = Depends(get_db)) -> List[AdminGuideSummary]:
+        records = list_recent_guides(db, state=state)
+        return [
+            AdminGuideSummary(
+                guide_id=guide.guide_id,
+                destination=guide.destination_name,
+                state=guide.state,
+                quality_score=guide.quality_score,
+                total_sections=guide.total_sections,
+                total_word_count=guide.total_word_count,
+                created_at=guide.created_at,
+            )
+            for guide in records
+        ]
 
     return app
