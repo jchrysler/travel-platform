@@ -3,7 +3,19 @@
 from datetime import datetime
 from enum import Enum
 from typing import Optional
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, JSON, Float, Enum as SQLEnum
+from sqlalchemy import (
+    Column,
+    String,
+    Integer,
+    Text,
+    DateTime,
+    ForeignKey,
+    JSON,
+    Float,
+    Enum as SQLEnum,
+    UniqueConstraint,
+    Index,
+)
 from sqlalchemy.orm import relationship
 
 try:
@@ -149,3 +161,73 @@ class ProcessingLog(Base):
         # Add composite index for common queries
         # Index('ix_logs_batch_timestamp', 'batch_id', 'timestamp'),
     )
+
+
+class GuideState(str, Enum):
+    """Lifecycle state for research guides."""
+
+    candidate = "candidate"  # Meets automatic quality threshold, pending publication
+    needs_review = "needs_review"  # Captured but requires editorial review
+    published = "published"  # Published to the explore catalog
+    discarded = "discarded"  # Rejected or below quality threshold
+
+
+class ResearchGuide(Base):
+    """User-generated research guide assembled from AI search results."""
+
+    __tablename__ = "research_guides"
+
+    id = Column(Integer, primary_key=True)
+    guide_id = Column(String(40), unique=True, nullable=False, index=True)
+
+    destination_slug = Column(String(128), index=True, nullable=False)
+    destination_name = Column(String(128), nullable=False)
+
+    title = Column(String(255), nullable=False)
+    summary = Column(Text)
+
+    total_sections = Column(Integer, default=0)
+    total_word_count = Column(Integer, default=0)
+    unique_queries = Column(Integer, default=0)
+    quality_score = Column(Float, default=0.0)
+    state = Column(SQLEnum(GuideState, name="guide_state"), default=GuideState.needs_review, nullable=False)
+
+    content_signature = Column(String(64), unique=True, nullable=False)
+    metadata = Column(JSON)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    user_fingerprint = Column(String(128))
+
+    sections = relationship(
+        "ResearchGuideSection",
+        back_populates="guide",
+        cascade="all, delete-orphan",
+        order_by="ResearchGuideSection.display_order",
+    )
+
+
+class ResearchGuideSection(Base):
+    """Sections within a research guide."""
+
+    __tablename__ = "research_guide_sections"
+
+    id = Column(Integer, primary_key=True)
+    guide_id = Column(Integer, ForeignKey("research_guides.id", ondelete="CASCADE"), nullable=False)
+
+    display_order = Column(Integer, nullable=False)
+    heading = Column(String(255), nullable=False)
+    body = Column(Text, nullable=False)
+    source_query = Column(Text, nullable=False)
+    raw_response = Column(Text)
+
+    guide = relationship("ResearchGuide", back_populates="sections")
+
+    __table_args__ = (
+        UniqueConstraint("guide_id", "display_order", name="uq_guide_section_order"),
+    )
+
+
+# Helpful indexes for reporting/exports
+Index("ix_guides_state_destination", ResearchGuide.state, ResearchGuide.destination_slug)

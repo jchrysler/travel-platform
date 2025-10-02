@@ -5,14 +5,51 @@ Simple implementation using Gemini API directly for MVP
 
 import os
 import json
-from typing import Dict, Any, AsyncIterator
-from fastapi import HTTPException
+from typing import Dict, Any, AsyncIterator, List, Optional
+from fastapi import HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from agent.database.config import get_db
+from agent.database.operations import save_research_guide, GuideSaveDecision
 
 load_dotenv()
+
+
+class GuideSectionPayload(BaseModel):
+    title: str = Field(..., min_length=1)
+    body: str = Field(..., min_length=1)
+    query: str = Field(..., min_length=1)
+    raw_response: Optional[str] = Field(None, alias="rawResponse")
+
+    class Config:
+        allow_population_by_field_name = True
+
+
+class GuideSubmissionPayload(BaseModel):
+    destination_name: str = Field(..., alias="destination", min_length=1)
+    destination_slug: str = Field(..., alias="destinationSlug", min_length=1)
+    title: str = Field(..., min_length=1)
+    description: Optional[str] = Field(None, alias="description")
+    sections: List[GuideSectionPayload]
+    total_searches: int = Field(..., alias="totalSearches", ge=1)
+    metadata: Optional[Dict[str, Any]] = None
+    user_fingerprint: Optional[str] = Field(None, alias="userFingerprint")
+
+    class Config:
+        allow_population_by_field_name = True
+
+
+class GuideSaveResponse(BaseModel):
+    status: GuideSaveDecision
+    guide_id: Optional[str] = None
+    state: Optional[str] = None
+    quality_score: Optional[float] = None
+    reason: Optional[str] = None
 
 
 def _require_gemini_api_key() -> str:
@@ -176,5 +213,47 @@ def create_travel_routes(app):
             explore_destination(city, query, api_key=api_key),
             media_type="text/event-stream"
         )
+
+    @app.post("/api/travel/guides", response_model=GuideSaveResponse)
+    async def store_guide(
+        payload: GuideSubmissionPayload,
+        db: Session = Depends(get_db),
+    ) -> GuideSaveResponse:
+        """Persist a high-quality research guide for future publishing."""
+
+        sections_payload = [
+            {
+                "title": section.title.strip(),
+                "body": section.body.strip(),
+                "query": section.query.strip(),
+                "raw_response": (section.raw_response or section.body).strip(),
+            }
+            for section in payload.sections
+            if section.body.strip()
+        ]
+
+        decision, guide, info = save_research_guide(
+            db,
+            destination_name=payload.destination_name.strip(),
+            destination_slug=payload.destination_slug.strip().lower(),
+            title=payload.title,
+            summary=payload.description,
+            sections=sections_payload,
+            total_searches=payload.total_searches,
+            metadata=payload.metadata,
+            user_fingerprint=payload.user_fingerprint,
+        )
+
+        if decision == GuideSaveDecision.error:
+            raise HTTPException(status_code=500, detail="Failed to store guide")
+
+        response = GuideSaveResponse(
+            status=decision,
+            guide_id=guide.guide_id if guide else None,
+            state=guide.state.value if guide else None,
+            quality_score=info.get("quality_score") if guide else None,
+            reason=info.get("reason"),
+        )
+        return response
 
     return app

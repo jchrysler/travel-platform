@@ -1,10 +1,33 @@
-"""Database operations for bulk article processing."""
+"""Database operations for bulk article processing and travel guides."""
 
 import uuid
+import hashlib
+import re
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from enum import Enum
+from typing import List, Optional, Dict, Any, Tuple
+
 from sqlalchemy.orm import Session
-from .models import ArticleBatch, BatchArticle, ProcessingLog, BatchStatus, ArticleStatus
+
+from .models import (
+    ArticleBatch,
+    BatchArticle,
+    ProcessingLog,
+    BatchStatus,
+    ArticleStatus,
+    GuideState,
+    ResearchGuide,
+    ResearchGuideSection,
+)
+
+
+class GuideSaveDecision(str, Enum):
+    """Result of attempting to store a research guide."""
+
+    accepted = "accepted"
+    duplicate = "duplicate"
+    insufficient = "insufficient"
+    error = "error"
 
 
 def create_batch(
@@ -243,3 +266,129 @@ def get_batch_logs(
     return db.query(ProcessingLog).filter(
         ProcessingLog.batch_id == batch_id
     ).order_by(ProcessingLog.timestamp.desc()).offset(skip).limit(limit).all()
+
+
+# ---------------------------------------------------------------------------
+# Travel guide persistence helpers
+# ---------------------------------------------------------------------------
+
+
+def _normalize_text(value: str) -> str:
+    cleaned = re.sub(r"\s+", " ", value.strip())
+    return cleaned.lower()
+
+
+def _word_count(value: str) -> int:
+    return len(re.findall(r"\b\w+\b", value))
+
+
+def _compute_quality(total_words: int, sections: int, unique_queries: int) -> float:
+    if sections == 0:
+        return 0.0
+
+    word_score = min(total_words / 800, 1.0)
+    section_score = min(sections / 6, 1.0)
+    diversity_score = min(unique_queries / max(sections, 1), 1.0)
+
+    return round((word_score * 0.45) + (section_score * 0.35) + (diversity_score * 0.2), 3)
+
+
+def save_research_guide(
+    db: Session,
+    *,
+    destination_name: str,
+    destination_slug: str,
+    title: str,
+    summary: Optional[str],
+    sections: List[Dict[str, str]],
+    total_searches: int,
+    metadata: Optional[Dict[str, Any]] = None,
+    user_fingerprint: Optional[str] = None,
+) -> Tuple[GuideSaveDecision, Optional[ResearchGuide], Dict[str, Any]]:
+    """Persist a research guide if it meets basic quality thresholds."""
+
+    if len(sections) < 2:
+        return GuideSaveDecision.insufficient, None, {"reason": "not_enough_sections"}
+
+    normalized_bodies = [
+        _normalize_text(section.get("body", ""))
+        for section in sections
+        if section.get("body")
+    ]
+
+    if not normalized_bodies:
+        return GuideSaveDecision.insufficient, None, {"reason": "empty_sections"}
+
+    content_signature = hashlib.sha256("||".join(normalized_bodies).encode("utf-8")).hexdigest()
+
+    existing = (
+        db.query(ResearchGuide)
+        .filter(ResearchGuide.content_signature == content_signature)
+        .first()
+    )
+
+    if existing:
+        return GuideSaveDecision.duplicate, existing, {"guide_id": existing.guide_id}
+
+    total_words = sum(_word_count(body) for body in normalized_bodies)
+    unique_queries = len({
+        _normalize_text(section.get("query", ""))
+        for section in sections
+        if section.get("query")
+    })
+
+    if total_words < 350 or unique_queries < 2:
+        return GuideSaveDecision.insufficient, None, {
+            "reason": "low_quality",
+            "total_words": total_words,
+            "unique_queries": unique_queries,
+        }
+
+    quality_score = _compute_quality(total_words, len(sections), unique_queries)
+    guide_state = GuideState.candidate if quality_score >= 0.55 else GuideState.needs_review
+
+    guide = ResearchGuide(
+        guide_id=f"guide_{uuid.uuid4().hex[:12]}",
+        destination_slug=destination_slug,
+        destination_name=destination_name,
+        title=title.strip() or f"{destination_name} Guide",
+        summary=summary.strip() if summary else None,
+        total_sections=len(sections),
+        total_word_count=total_words,
+        unique_queries=unique_queries,
+        quality_score=quality_score,
+        state=guide_state,
+        content_signature=content_signature,
+        metadata={
+            "total_searches": total_searches,
+            "submitted_at": datetime.utcnow().isoformat(),
+            **(metadata or {}),
+        },
+        user_fingerprint=user_fingerprint,
+    )
+
+    db.add(guide)
+    db.flush()
+
+    for index, section in enumerate(sections):
+        body_text = section.get("body", "").strip()
+        if not body_text:
+            continue
+
+        guide_section = ResearchGuideSection(
+            guide_id=guide.id,
+            display_order=index,
+            heading=section.get("title") or f"Section {index + 1}",
+            body=body_text,
+            source_query=section.get("query", "").strip() or "",
+            raw_response=section.get("raw_response", body_text),
+        )
+        db.add(guide_section)
+
+    db.commit()
+    db.refresh(guide)
+
+    return GuideSaveDecision.accepted, guide, {
+        "quality_score": quality_score,
+        "state": guide.state.value,
+    }

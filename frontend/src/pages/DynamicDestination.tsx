@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { SearchUnit } from "@/components/SearchUnit";
 import { SavedItemsList } from "@/components/SavedItemsList";
 import type { SavedItem } from "@/components/SaveableContent";
-import { deslugify } from "@/utils/slugify";
+import { deslugify, slugify } from "@/utils/slugify";
 import {
   trackDestinationVisit,
   getDestinationGuides,
@@ -43,6 +43,7 @@ export default function DynamicDestination() {
   const { destination, mode, id } = useParams<{ destination: string; mode?: string; id?: string }>();
   const navigate = useNavigate();
   const destinationName = destination ? deslugify(destination) : "";
+  const destinationSlug = destination || slugify(destinationName || "destination");
 
   const [customQuery, setCustomQuery] = useState("");
   const [searchUnits, setSearchUnits] = useState<SearchUnitData[]>([]);
@@ -94,10 +95,10 @@ export default function DynamicDestination() {
   useEffect(() => {
     if (destination) {
       // Track visit
-      trackDestinationVisit(destinationName, destination);
+      trackDestinationVisit(destinationName, destinationSlug);
 
       // Load existing guides
-      const guides = getDestinationGuides(destination);
+      const guides = getDestinationGuides(destinationSlug);
       setExistingGuides(guides);
 
       // If we have a draft ID in the URL, set it
@@ -128,7 +129,7 @@ export default function DynamicDestination() {
     if (searchUnits.length === 0 && !draftId) {
       const newDraftId = `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       setDraftId(newDraftId);
-      navigate(`/explore/${destination}/draft/${newDraftId}`, { replace: true });
+      navigate(`/explore/${destinationSlug}/draft/${newDraftId}`, { replace: true });
     }
 
     setIsSearching(true);
@@ -239,17 +240,60 @@ export default function DynamicDestination() {
     setSearchUnits(prev => prev.filter(unit => unit.id !== id));
   };
 
+  const submitGuideToBackend = async (
+    title: string,
+    description: string,
+    sections: Array<{ title: string; body: string; query: string; rawResponse: string }>,
+  ) => {
+    try {
+      const response = await fetch("/api/travel/guides", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          destination: destinationName,
+          destinationSlug,
+          title,
+          description,
+          sections,
+          totalSearches: searchUnits.length,
+          metadata: {
+            refinedTitles: Array.from(refinedTitles.entries()),
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn("Guide ingestion failed", await response.text());
+        return;
+      }
+
+      const result = await response.json();
+      console.info("Guide ingestion", result.status, result.state);
+    } catch (err) {
+      console.warn("Unable to store guide", err);
+    }
+  };
+
   const handleSaveGuide = async () => {
     const finalTitle = guideTitle.trim() || smartTitle?.title || `${destinationName} Guide`;
     const finalDescription = guideDescription.trim() || smartTitle?.subtitle || '';
-
-    if (searchUnits.length === 0) return;
+    if (searchUnits.length < 3) {
+      window.alert("Add at least three research sections before saving a guide.");
+      return;
+    }
 
     const queries = searchUnits.map(unit => unit.query);
     const responses = searchUnits.map(unit => unit.response);
     const sectionTitles = searchUnits.map(unit =>
       refinedTitles.get(unit.id) || refineQueryToTitle(unit.query, destinationName)
     );
+
+    const backendSections = searchUnits.map((unit, index) => ({
+      title: sectionTitles[index],
+      body: (unit.response || '').trim(),
+      query: unit.query,
+      rawResponse: unit.response || '',
+    })).filter(section => section.body.length > 0);
 
     const guide = saveGuide(
       destinationName,
@@ -260,8 +304,11 @@ export default function DynamicDestination() {
       sectionTitles
     );
 
+    // Fire-and-forget backend persistence (best effort)
+    void submitGuideToBackend(finalTitle, finalDescription, backendSections);
+
     // Navigate to the new guide
-    navigate(`/explore/${destination}/${guide.slug}`);
+      navigate(`/explore/${destinationSlug}/${guide.slug}`);
   };
 
   return (
@@ -417,10 +464,10 @@ export default function DynamicDestination() {
                     Hand-crafted guides
                   </h3>
                   <div className="space-y-2">
-                    {existingGuides.map((guide) => (
-                      <Link
-                        key={guide.id}
-                        to={`/explore/${destination}/${guide.slug}`}
+                {existingGuides.map((guide) => (
+                  <Link
+                    key={guide.id}
+                    to={`/explore/${destinationSlug}/${guide.slug}`}
                         className="block rounded-lg border bg-card p-3 transition hover:border-primary"
                       >
                         <div className="font-medium">{guide.title}</div>
@@ -530,7 +577,7 @@ export default function DynamicDestination() {
         onRemove={handleRemoveItem}
         onClearAll={handleClearAll}
         cityName={destinationName}
-        destinationSlug={destination}
+        destinationSlug={destinationSlug}
       />
 
       {/* Floating Save Guide Button */}
