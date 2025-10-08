@@ -270,8 +270,12 @@ async def _generate_travel_hero_image(prompt: str, model_name: str) -> Dict[str,
         )
 
         for part in getattr(response, "parts", []) or []:
-            if getattr(part, "inline_data", None) is not None:
-                return part.as_image()
+            inline_data = getattr(part, "inline_data", None)
+            if inline_data is not None:
+                # Convert Gemini inline_data bytes to PIL Image
+                image_bytes = getattr(inline_data, "data", None)
+                if image_bytes:
+                    return Image.open(io.BytesIO(image_bytes))
 
         raise RuntimeError("Image generation returned no inline image data")
 
