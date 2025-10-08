@@ -101,17 +101,17 @@ class HeroImageGeneratePayload(BaseModel):
 
 class HeroImageResponse(BaseModel):
     destination: str
-    destination_slug: str = Field(..., alias="destinationSlug")
+    destination_slug: str = Field(..., serialization_alias="destinationSlug")
     prompt: str
-    prompt_version: str = Field(..., alias="promptVersion")
+    prompt_version: str = Field(..., serialization_alias="promptVersion")
     width: int
     height: int
-    image_webp: str = Field(..., alias="imageWebp")
-    image_jpeg: Optional[str] = Field(None, alias="imageJpeg")
-    updated_at: datetime = Field(..., alias="updatedAt")
+    image_webp: str = Field(..., serialization_alias="imageWebp")
+    image_jpeg: Optional[str] = Field(None, serialization_alias="imageJpeg")
+    updated_at: datetime = Field(..., serialization_alias="updatedAt")
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
 
 
 class HeroImageListResponse(BaseModel):
