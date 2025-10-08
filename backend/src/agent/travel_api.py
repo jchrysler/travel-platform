@@ -200,12 +200,13 @@ async def _generate_destination_suggestions(destination: str, api_key: str) -> L
 
 
 DEFAULT_HERO_PROMPT_TEMPLATE = (
-    "Create a travel site hero image at a 16x9 aspect ratio for {destination}. "
-    "The composition should feel cinematic, welcoming, and instantly transport a traveler "
-    "to {destination}, highlighting iconic scenery, immersive atmosphere, and aspirational details."
+    "A 16:9 journalistic professional travel photo of {destination} that could be used in "
+    "Travel & Leisure or Condé Nast. A high quality travel photo that captures the essence "
+    "of the destination. No text, no overlays, no graphic elements—just an authentic "
+    "photographic image."
 )
 
-HERO_PROMPT_VERSION = "poc-v1"
+HERO_PROMPT_VERSION = "v2-journalistic"
 HERO_MODEL_NAME = "gemini-2.5-flash-image"
 _SLUGIFY_PATTERN = re.compile(r"[^a-z0-9]+")
 

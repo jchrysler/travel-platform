@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Sparkles, RefreshCw, Image as ImageIcon } from "lucide-react";
+import { Sparkles, RefreshCw, Image as ImageIcon, Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -136,6 +136,18 @@ export default function HeroSeeder() {
     setDestination(record.destination);
   }
 
+  function downloadHeroImage(record: HeroImageRecord, format: "webp" | "jpeg") {
+    const dataUrl = format === "webp" ? record.imageWebp : record.imageJpeg;
+    if (!dataUrl) return;
+
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = `${record.destinationSlug}-hero.${format}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await generateHeroImage();
@@ -255,6 +267,29 @@ export default function HeroSeeder() {
                 <div className="text-muted-foreground text-sm">Generate a hero to preview it here.</div>
               )}
             </div>
+
+            {selectedImage && (
+              <div className="flex gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => downloadHeroImage(selectedImage, "webp")}
+                  className="flex-1"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download WebP
+                </Button>
+                {selectedImage.imageJpeg && (
+                  <Button
+                    variant="outline"
+                    onClick={() => downloadHeroImage(selectedImage, "jpeg")}
+                    className="flex-1"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download JPEG
+                  </Button>
+                )}
+              </div>
+            )}
           </Card>
 
           <Card className="p-4 md:p-6">
