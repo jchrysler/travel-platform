@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { MapPin, Calendar, Compass } from "lucide-react";
+import { MapPin, Calendar, Compass, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Navigation() {
@@ -61,6 +61,22 @@ export default function Navigation() {
                 <div className="flex items-center gap-2">
                   <Compass className="h-4 w-4" />
                   Explore
+                </div>
+              </Link>
+
+              <Link
+                to="/hero-seeder"
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  "hover:bg-muted/50",
+                  location.pathname.startsWith("/hero-seeder")
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  Hero Seeder
                 </div>
               </Link>
             </div>

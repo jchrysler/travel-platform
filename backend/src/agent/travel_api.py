@@ -3,26 +3,38 @@ Travel API endpoints for Trip Builder and Destination Explorer
 Simple implementation using Gemini API directly for MVP
 """
 
-import os
+import base64
+import io
 import json
+import os
+import re
 from datetime import datetime
+from functools import lru_cache
 from typing import Dict, Any, AsyncIterator, List, Optional
-from fastapi import HTTPException, Depends
+
+from fastapi import Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
+from google.genai import Client, types
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from PIL import Image, ImageOps
+
 from agent.database.config import get_db
-from agent.database.models import GuideState
+from agent.database.models import DestinationHeroImage, GuideState
 from agent.database.operations import (
     save_research_guide,
     GuideSaveDecision,
     get_destination_suggestions,
     store_destination_suggestions,
     list_recent_guides,
+    upsert_destination_hero_image,
+    list_destination_hero_images,
+    get_destination_hero_image,
 )
 
 load_dotenv()
@@ -75,6 +87,36 @@ class AdminGuideSummary(BaseModel):
     total_sections: int
     total_word_count: int
     created_at: datetime
+
+
+class HeroImageGeneratePayload(BaseModel):
+    destination: str = Field(..., min_length=1)
+    prompt_hint: Optional[str] = Field(None, alias="promptHint")
+    prompt_override: Optional[str] = Field(None, alias="promptOverride")
+    model: Optional[str] = Field(None, alias="model")
+
+    class Config:
+        allow_population_by_field_name = True
+
+
+class HeroImageResponse(BaseModel):
+    destination: str
+    destination_slug: str = Field(..., alias="destinationSlug")
+    prompt: str
+    prompt_version: str = Field(..., alias="promptVersion")
+    width: int
+    height: int
+    image_webp: str = Field(..., alias="imageWebp")
+    image_jpeg: Optional[str] = Field(None, alias="imageJpeg")
+    updated_at: datetime = Field(..., alias="updatedAt")
+
+    class Config:
+        allow_population_by_field_name = True
+
+
+class HeroImageListResponse(BaseModel):
+    items: List[HeroImageResponse]
+    total: int
 
 
 def _require_gemini_api_key() -> str:
@@ -155,6 +197,107 @@ async def _generate_destination_suggestions(destination: str, api_key: str) -> L
         if cleaned:
             fallback.append(cleaned)
     return fallback[:8]
+
+
+DEFAULT_HERO_PROMPT_TEMPLATE = (
+    "Create a travel site hero image at a 16x9 aspect ratio for {destination}. "
+    "The composition should feel cinematic, welcoming, and instantly transport a traveler "
+    "to {destination}, highlighting iconic scenery, immersive atmosphere, and aspirational details."
+)
+
+HERO_PROMPT_VERSION = "poc-v1"
+HERO_MODEL_NAME = "gemini-2.5-flash-image"
+_SLUGIFY_PATTERN = re.compile(r"[^a-z0-9]+")
+
+
+@lru_cache(maxsize=1)
+def _get_image_client() -> Client:
+    return Client(api_key=_require_gemini_api_key())
+
+
+def _slugify_destination(value: str) -> str:
+    slug = _SLUGIFY_PATTERN.sub("-", value.lower()).strip("-")
+    return slug or "destination"
+
+
+def _build_hero_prompt(destination: str, prompt_hint: Optional[str], prompt_override: Optional[str]) -> Dict[str, str]:
+    if prompt_override and prompt_override.strip():
+        prompt = prompt_override.strip()
+        base_prompt = DEFAULT_HERO_PROMPT_TEMPLATE.format(destination=destination)
+    else:
+        base_prompt = DEFAULT_HERO_PROMPT_TEMPLATE.format(destination=destination)
+        prompt = base_prompt
+        if prompt_hint and prompt_hint.strip():
+            prompt = f"{prompt} {prompt_hint.strip()}"
+    return {"prompt": prompt, "base_prompt": base_prompt}
+
+
+def _encode_data_url(mime_type: str, data: bytes) -> str:
+    encoded = base64.b64encode(data).decode("ascii")
+    return f"data:{mime_type};base64,{encoded}"
+
+
+def _prepare_travel_hero_image(image: Image.Image) -> tuple[int, int, bytes, bytes]:
+    target_size = (1920, 1080)
+    prepared = ImageOps.fit(
+        image.convert("RGB"),
+        target_size,
+        method=Image.Resampling.LANCZOS,
+    )
+
+    webp_buffer = io.BytesIO()
+    prepared.save(webp_buffer, format="WEBP", quality=82, method=6)
+    webp_bytes = webp_buffer.getvalue()
+
+    jpeg_buffer = io.BytesIO()
+    prepared.save(jpeg_buffer, format="JPEG", quality=88, optimize=True, progressive=True)
+    jpeg_bytes = jpeg_buffer.getvalue()
+
+    return prepared.width, prepared.height, webp_bytes, jpeg_bytes
+
+
+async def _generate_travel_hero_image(prompt: str, model_name: str) -> Dict[str, Any]:
+    client = _get_image_client()
+
+    def _invoke_model() -> Image.Image:
+        response = client.models.generate_content(
+            model=model_name,
+            contents=[prompt],
+            config=types.GenerateContentConfig(
+                response_modalities=["IMAGE"],
+                image_config=types.ImageConfig(aspect_ratio="16:9"),
+            ),
+        )
+
+        for part in getattr(response, "parts", []) or []:
+            if getattr(part, "inline_data", None) is not None:
+                return part.as_image()
+
+        raise RuntimeError("Image generation returned no inline image data")
+
+    raw_image = await run_in_threadpool(_invoke_model)
+    width, height, webp_bytes, jpeg_bytes = await run_in_threadpool(_prepare_travel_hero_image, raw_image)
+
+    return {
+        "width": width,
+        "height": height,
+        "webp_bytes": webp_bytes,
+        "jpeg_bytes": jpeg_bytes,
+    }
+
+
+def _serialize_hero_image(record: DestinationHeroImage) -> HeroImageResponse:
+    return HeroImageResponse(
+        destination=record.destination_name,
+        destination_slug=record.destination_slug,
+        prompt=record.prompt,
+        prompt_version=record.prompt_version,
+        width=record.width,
+        height=record.height,
+        image_webp=_encode_data_url("image/webp", record.image_webp),
+        image_jpeg=_encode_data_url("image/jpeg", record.image_jpeg) if record.image_jpeg else None,
+        updated_at=record.updated_at,
+    )
 
 
 async def generate_trip_itinerary(
@@ -386,6 +529,61 @@ def create_travel_routes(app):
             suggestions=suggestions,
             cached=False,
         )
+
+    @app.get("/api/hero-images", response_model=HeroImageListResponse)
+    async def list_hero_images_endpoint(limit: int = 50, db: Session = Depends(get_db)) -> HeroImageListResponse:
+        bounded_limit = max(1, min(limit, 100))
+        records = list_destination_hero_images(db, limit=bounded_limit)
+        items = [_serialize_hero_image(record) for record in records]
+        return HeroImageListResponse(items=items, total=len(items))
+
+    @app.get("/api/hero-images/{destination_slug}", response_model=HeroImageResponse)
+    async def get_hero_image(destination_slug: str, db: Session = Depends(get_db)) -> HeroImageResponse:
+        record = get_destination_hero_image(db, destination_slug=destination_slug)
+        if not record:
+            raise HTTPException(status_code=404, detail="Hero image not found")
+        return _serialize_hero_image(record)
+
+    @app.post("/api/hero-images", response_model=HeroImageResponse)
+    async def generate_hero_image_endpoint(
+        payload: HeroImageGeneratePayload,
+        db: Session = Depends(get_db),
+    ) -> HeroImageResponse:
+        destination_name = payload.destination.strip()
+        if not destination_name:
+            raise HTTPException(status_code=400, detail="Destination is required")
+
+        destination_slug = _slugify_destination(destination_name)
+        prompts = _build_hero_prompt(destination_name, payload.prompt_hint, payload.prompt_override)
+        model_name = (payload.model or HERO_MODEL_NAME).strip() or HERO_MODEL_NAME
+
+        try:
+            generation = await _generate_travel_hero_image(prompts["prompt"], model_name)
+        except Exception as exc:  # pragma: no cover - external API failure path
+            raise HTTPException(status_code=502, detail=f"Hero image generation failed: {exc}") from exc
+
+        metadata = {
+            "model": model_name,
+            "prompt_hint": payload.prompt_hint,
+            "prompt_override": payload.prompt_override,
+            "base_prompt": prompts["base_prompt"],
+            "generated_at": datetime.utcnow().isoformat(),
+        }
+
+        record = upsert_destination_hero_image(
+            db,
+            destination_name=destination_name,
+            destination_slug=destination_slug,
+            prompt=prompts["prompt"],
+            prompt_version=HERO_PROMPT_VERSION,
+            width=generation["width"],
+            height=generation["height"],
+            image_webp=generation["webp_bytes"],
+            image_jpeg=generation["jpeg_bytes"],
+            metadata=metadata,
+        )
+
+        return _serialize_hero_image(record)
 
     @app.get("/admin/guides", response_model=List[AdminGuideSummary])
     async def list_guides(state: Optional[GuideState] = None, db: Session = Depends(get_db)) -> List[AdminGuideSummary]:

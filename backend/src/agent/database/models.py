@@ -15,6 +15,7 @@ from sqlalchemy import (
     Enum as SQLEnum,
     UniqueConstraint,
     Index,
+    LargeBinary,
 )
 from sqlalchemy.orm import relationship
 
@@ -249,3 +250,29 @@ class DestinationSuggestion(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     usage_metadata = Column(JSON)
+
+
+class DestinationHeroImage(Base):
+    """Stores generated hero imagery per destination."""
+
+    __tablename__ = "destination_hero_images"
+
+    id = Column(Integer, primary_key=True)
+    destination_slug = Column(String(128), unique=True, nullable=False, index=True)
+    destination_name = Column(String(128), nullable=False)
+
+    prompt = Column(Text, nullable=False)
+    prompt_version = Column(String(32), default="v1", nullable=False)
+
+    width = Column(Integer, nullable=False)
+    height = Column(Integer, nullable=False)
+
+    image_webp = Column(LargeBinary, nullable=False)
+    image_jpeg = Column(LargeBinary)
+    image_webp_size = Column(Integer, nullable=False)
+    image_jpeg_size = Column(Integer)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    extra_metadata = Column(JSON)

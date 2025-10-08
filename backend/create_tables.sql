@@ -79,6 +79,24 @@ CREATE TABLE IF NOT EXISTS processing_logs (
 -- Create index on processing_logs
 CREATE INDEX IF NOT EXISTS idx_processing_logs_batch_id ON processing_logs(batch_id);
 
+-- Create destination_hero_images table
+CREATE TABLE IF NOT EXISTS destination_hero_images (
+    id SERIAL PRIMARY KEY,
+    destination_slug VARCHAR(128) UNIQUE NOT NULL,
+    destination_name VARCHAR(128) NOT NULL,
+    prompt TEXT NOT NULL,
+    prompt_version VARCHAR(32) DEFAULT 'poc-v1' NOT NULL,
+    width INTEGER NOT NULL,
+    height INTEGER NOT NULL,
+    image_webp BYTEA NOT NULL,
+    image_jpeg BYTEA,
+    image_webp_size INTEGER NOT NULL,
+    image_jpeg_size INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    extra_metadata JSON
+);
+
 -- Grant permissions (if needed)
 -- GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres;
 -- GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres;

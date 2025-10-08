@@ -19,6 +19,7 @@ from .models import (
     ResearchGuide,
     ResearchGuideSection,
     DestinationSuggestion,
+    DestinationHeroImage,
 )
 
 
@@ -451,6 +452,84 @@ def store_destination_suggestions(
     db.commit()
     db.refresh(record)
     return record
+
+
+def upsert_destination_hero_image(
+    db: Session,
+    *,
+    destination_name: str,
+    destination_slug: str,
+    prompt: str,
+    prompt_version: str,
+    width: int,
+    height: int,
+    image_webp: bytes,
+    image_jpeg: Optional[bytes],
+    metadata: Optional[Dict[str, Any]] = None,
+) -> DestinationHeroImage:
+    record = (
+        db.query(DestinationHeroImage)
+        .filter(DestinationHeroImage.destination_slug == destination_slug.lower())
+        .first()
+    )
+
+    metadata_payload = metadata or {}
+
+    if record:
+        record.destination_name = destination_name
+        record.prompt = prompt
+        record.prompt_version = prompt_version
+        record.width = width
+        record.height = height
+        record.image_webp = image_webp
+        record.image_jpeg = image_jpeg
+        record.image_webp_size = len(image_webp)
+        record.image_jpeg_size = len(image_jpeg) if image_jpeg else None
+        record.extra_metadata = metadata_payload
+    else:
+        record = DestinationHeroImage(
+            destination_slug=destination_slug.lower(),
+            destination_name=destination_name,
+            prompt=prompt,
+            prompt_version=prompt_version,
+            width=width,
+            height=height,
+            image_webp=image_webp,
+            image_jpeg=image_jpeg,
+            image_webp_size=len(image_webp),
+            image_jpeg_size=len(image_jpeg) if image_jpeg else None,
+            extra_metadata=metadata_payload,
+        )
+        db.add(record)
+
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+def list_destination_hero_images(
+    db: Session,
+    *,
+    limit: int = 50,
+) -> List[DestinationHeroImage]:
+    query = (
+        db.query(DestinationHeroImage)
+        .order_by(DestinationHeroImage.updated_at.desc())
+        .limit(limit)
+    )
+    return list(query)
+
+
+def get_destination_hero_image(
+    db: Session,
+    *,
+    destination_slug: str,
+) -> Optional[DestinationHeroImage]:
+    return (
+        db.query(DestinationHeroImage)
+        .filter(DestinationHeroImage.destination_slug == destination_slug.lower())
+        .first()
+    )
 
 
 def list_recent_guides(

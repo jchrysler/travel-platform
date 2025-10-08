@@ -16,7 +16,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # Import just what we need for models
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, JSON, Float, Enum as SQLEnum
+from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, JSON, Float, Enum as SQLEnum, LargeBinary
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from enum import Enum
@@ -127,6 +127,32 @@ class ProcessingLog(Base):
     level = Column(String(20))  # INFO, WARNING, ERROR
     message = Column(Text)
     details = Column(JSON)  # Additional structured data
+
+
+class DestinationHeroImage(Base):
+    """Stores generated hero imagery per destination."""
+
+    __tablename__ = "destination_hero_images"
+
+    id = Column(Integer, primary_key=True)
+    destination_slug = Column(String(128), unique=True, nullable=False, index=True)
+    destination_name = Column(String(128), nullable=False)
+
+    prompt = Column(Text, nullable=False)
+    prompt_version = Column(String(32), default="poc-v1", nullable=False)
+
+    width = Column(Integer, nullable=False)
+    height = Column(Integer, nullable=False)
+
+    image_webp = Column(LargeBinary, nullable=False)
+    image_jpeg = Column(LargeBinary)
+    image_webp_size = Column(Integer, nullable=False)
+    image_jpeg_size = Column(Integer)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    extra_metadata = Column(JSON)
 
 def main():
     """Create all tables in production database."""
