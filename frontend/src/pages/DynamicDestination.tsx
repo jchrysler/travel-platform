@@ -39,6 +39,18 @@ interface PlaceResult {
   description?: string;
 }
 
+interface HeroImageRecord {
+  destination: string;
+  destinationSlug: string;
+  prompt: string;
+  promptVersion: string;
+  width: number;
+  height: number;
+  imageWebp: string;
+  imageJpeg?: string | null;
+  updatedAt: string;
+}
+
 export default function DynamicDestination() {
   const { destination, mode, id } = useParams<{ destination: string; mode?: string; id?: string }>();
   const navigate = useNavigate();
@@ -62,6 +74,8 @@ export default function DynamicDestination() {
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const [serverSuggestions, setServerSuggestions] = useState<string[] | null>(null);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [heroImage, setHeroImage] = useState<HeroImageRecord | null>(null);
+  const [isGeneratingHero, setIsGeneratingHero] = useState(false);
 
   const heroContent = getDestinationHeroContent(destination ?? "");
   const readableDestination = destinationName || "this destination";
@@ -73,6 +87,51 @@ export default function DynamicDestination() {
     `Hidden gems around ${readableDestination}`,
     `Romantic evening ideas in ${readableDestination}`,
   ];
+
+  // Fetch or generate hero image
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function fetchOrGenerateHero() {
+      if (!destinationSlug) return;
+
+      try {
+        // Try to fetch existing hero image
+        const response = await fetch(`/api/hero-images/${destinationSlug}`, {
+          signal: controller.signal,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setHeroImage(data);
+        } else if (response.status === 404) {
+          // No hero exists, generate one in the background
+          setIsGeneratingHero(true);
+          const generateResponse = await fetch('/api/hero-images', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ destination: destinationName }),
+            signal: controller.signal,
+          });
+
+          if (generateResponse.ok) {
+            const generatedData = await generateResponse.json();
+            setHeroImage(generatedData);
+          }
+        }
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          console.warn('Hero image fetch/generation failed', error);
+        }
+      } finally {
+        setIsGeneratingHero(false);
+      }
+    }
+
+    fetchOrGenerateHero();
+    return () => controller.abort();
+  }, [destinationSlug, destinationName]);
+
   useEffect(() => {
     const controller = new AbortController();
     async function fetchSuggestions() {
@@ -356,12 +415,19 @@ export default function DynamicDestination() {
       <section className="relative isolate overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src={heroContent.imageUrl}
-            alt={heroContent.imageAlt}
+            src={heroImage?.imageWebp || heroContent.imageUrl}
+            alt={heroImage ? `Hero image for ${heroImage.destination}` : heroContent.imageAlt}
             className="h-full w-full object-cover"
             loading="lazy"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-background" />
+          {isGeneratingHero && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+              <div className="text-white text-sm font-medium bg-black/50 px-4 py-2 rounded-lg backdrop-blur-sm">
+                Generating hero image...
+              </div>
+            </div>
+          )}
         </div>
         <div className="relative z-10">
           <div className="container mx-auto flex min-h-[520px] max-w-6xl flex-col justify-end gap-8 px-4 py-24">
