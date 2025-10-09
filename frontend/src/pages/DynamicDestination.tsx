@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, Sparkles, MapPin, BookOpen, Save } from "lucide-react";
+import { ArrowLeft, Search, Sparkles, MapPin, BookOpen, Save, PanelRightOpen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -113,6 +113,7 @@ export default function DynamicDestination() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [heroImage, setHeroImage] = useState<HeroImageRecord | null>(null);
   const [isGeneratingHero, setIsGeneratingHero] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const heroContent = getDestinationHeroContent(destination ?? "");
   const readableDestination = destinationName || "this destination";
@@ -225,16 +226,20 @@ export default function DynamicDestination() {
 
   const featuredPromotions = [
     {
-      tag: "Featured stay",
-      title: `Boutique hotels in ${destinationName}`,
-      body: "Hand-picked suites with rooftop views, late check-out, and breakfast included. Partner offers refresh daily.",
-      cta: "Browse partner stays",
+      tag: "Ad",
+      vendor: "Booking.com",
+      title: `Hotels in ${destinationName} - Up to 50% Off`,
+      body: "Book now and save on hotels. Free cancellation on most rooms. Price guarantee. 24/7 customer service.",
+      cta: "View hotels",
+      url: "#",
     },
     {
-      tag: "Curated experience",
-      title: `Top tours running this week`,
-      body: "Reserve small-group experiences with instant confirmation. Food crawls, guided art walks, and hidden local workshops.",
-      cta: "See experiences",
+      tag: "Ad",
+      vendor: "GetYourGuide",
+      title: `${destinationName} Tours & Activities - Book Online`,
+      body: "Skip-the-line tickets • Expert guides • Small groups • Free cancellation. Best price guaranteed for all attractions.",
+      cta: "Book now",
+      url: "#",
     },
   ];
 
@@ -550,21 +555,124 @@ export default function DynamicDestination() {
         </div>
       </section>
 
-      <section ref={resultsRef} className="relative z-10 -mt-16 pb-24">
-        <div className="container mx-auto max-w-6xl px-4">
-          <div className="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
-            <div className="space-y-6">
+      <section ref={resultsRef} className="relative z-10 -mt-8 pb-24">
+        <div className="container mx-auto max-w-5xl px-4">
+          {/* Sidebar Toggle */}
+          {!isSidebarOpen && (
+            <div className="mb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSidebarOpen(true)}
+                className="gap-2"
+              >
+                <PanelRightOpen className="h-4 w-4" />
+                Show filters & suggestions
+              </Button>
+            </div>
+          )}
+
+          {/* Main Content Area */}
+          <div className="space-y-6">
+            {/* Ad 1 */}
+            <a
+              href={featuredPromotions[0].url}
+              className="block rounded-lg border border-border bg-card p-5 transition hover:border-primary/40 hover:shadow-md"
+            >
+              <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-medium">{featuredPromotions[0].tag}</span>
+                <span>·</span>
+                <span>{featuredPromotions[0].vendor}</span>
+              </div>
+              <h3 className="text-xl font-semibold text-primary hover:underline">
+                {featuredPromotions[0].title}
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed">
+                {featuredPromotions[0].body}
+              </p>
+            </a>
+
+            {/* Search Results */}
+            {searchUnits.map((unit, index) => (
+              <SearchUnit
+                key={unit.id}
+                unit={unit}
+                cityName={destinationName}
+                isFirst={index === searchUnits.length - 1}
+                isLatest={index === 0 && unit.id === currentStreamingId}
+                onSaveItem={handleSaveItem}
+                savedItemIds={savedItemIds}
+                onDelete={handleDeleteSearch}
+                showDelete={searchUnits.length > 0}
+              />
+            ))}
+
+            {/* Ad 2 */}
+            {searchUnits.length > 0 && (
+              <a
+                href={featuredPromotions[1].url}
+                className="block rounded-lg border border-border bg-card p-5 transition hover:border-primary/40 hover:shadow-md"
+              >
+                <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-medium">{featuredPromotions[1].tag}</span>
+                  <span>·</span>
+                  <span>{featuredPromotions[1].vendor}</span>
+                </div>
+                <h3 className="text-xl font-semibold text-primary hover:underline">
+                  {featuredPromotions[1].title}
+                </h3>
+                <p className="mt-1.5 text-sm leading-relaxed">
+                  {featuredPromotions[1].body}
+                </p>
+              </a>
+            )}
+
+            {/* Empty State */}
+            {searchUnits.length === 0 && !isSearching && (
+              <Card className="p-12 text-center">
+                <Sparkles className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                <h3 className="mb-2 text-xl font-semibold md:text-2xl">
+                  Start exploring {readableDestination}
+                </h3>
+                <p className="text-muted-foreground">
+                  Ask any question or tap a suggested idea to generate a ready-to-run plan.
+                </p>
+              </Card>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Collapsible Sidebar */}
+      {isSidebarOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setIsSidebarOpen(false)}>
+          <div
+            className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto bg-background shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-6 py-4">
+              <h2 className="text-lg font-semibold">Filters & Suggestions</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsSidebarOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="space-y-6 p-6">
               {existingGuides.length > 0 && (
                 <div>
-                  <h3 className="mb-3 flex items-center gap-2 text-xl font-semibold md:text-2xl">
+                  <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold">
                     <BookOpen className="h-4 w-4 text-primary" />
                     Hand-crafted guides
                   </h3>
                   <div className="space-y-2">
-                {existingGuides.map((guide) => (
-                  <Link
-                    key={guide.id}
-                    to={`/explore/${destinationSlug}/${guide.slug}`}
+                    {existingGuides.map((guide) => (
+                      <Link
+                        key={guide.id}
+                        to={`/explore/${destinationSlug}/${guide.slug}`}
                         className="block rounded-lg border bg-card p-3 transition hover:border-primary"
                       >
                         <div className="font-medium">{guide.title}</div>
@@ -582,8 +690,8 @@ export default function DynamicDestination() {
                 </div>
               )}
 
-              <Card className="p-6">
-                <h3 className="text-xl font-semibold md:text-2xl">Popular sparks</h3>
+              <div>
+                <h3 className="text-lg font-semibold">Popular sparks</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Tap a theme to load localized answers instantly.
                 </p>
@@ -593,10 +701,14 @@ export default function DynamicDestination() {
                       Generating fresh ideas…
                     </div>
                   ) : (
-                    (heroContent.searchBuckets?.length ? heroContent.searchBuckets : [
-                      { label: "Ideas", queries: combinedPopularQueries.slice(0, 6) },
-                    ]).map((bucket) => (
-                      <div key={bucket.label} className="rounded-xl border border-border/60 bg-muted/40 p-3">
+                    (heroContent.searchBuckets?.length
+                      ? heroContent.searchBuckets
+                      : [{ label: "Ideas", queries: combinedPopularQueries.slice(0, 6) }]
+                    ).map((bucket) => (
+                      <div
+                        key={bucket.label}
+                        className="rounded-xl border border-border/60 bg-muted/40 p-3"
+                      >
                         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                           {bucket.label}
                         </div>
@@ -604,7 +716,10 @@ export default function DynamicDestination() {
                           {bucket.queries.map((query) => (
                             <button
                               key={query}
-                              onClick={() => handleSuggestedSearch(query)}
+                              onClick={() => {
+                                handleSuggestedSearch(query);
+                                setIsSidebarOpen(false);
+                              }}
                               disabled={isSearching}
                               className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium transition hover:border-primary hover:text-primary"
                             >
@@ -616,63 +731,11 @@ export default function DynamicDestination() {
                     ))
                   )}
                 </div>
-              </Card>
-
-              {featuredPromotions.map((promo) => (
-                <Card key={promo.title} className="overflow-hidden border-primary/20 shadow-xl">
-                  <div className="bg-gradient-to-r from-primary/15 via-primary/10 to-transparent px-6 py-5">
-                    <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-                      <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
-                        {promo.tag}
-                      </Badge>
-                      <span className="text-primary/90">Sponsored</span>
-                    </div>
-                    <h3 className="mt-4 text-xl font-semibold text-primary">
-                      {promo.title}
-                    </h3>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {promo.body}
-                    </p>
-                    <Button className="mt-4" variant="secondary">
-                      {promo.cta}
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-
-            <div className="lg:col-span-1 lg:col-start-2">
-              <div className="space-y-4">
-                {searchUnits.map((unit, index) => (
-                  <SearchUnit
-                    key={unit.id}
-                    unit={unit}
-                    cityName={destinationName}
-                    isFirst={index === searchUnits.length - 1}
-                    isLatest={index === 0 && unit.id === currentStreamingId}
-                    onSaveItem={handleSaveItem}
-                    savedItemIds={savedItemIds}
-                    onDelete={handleDeleteSearch}
-                    showDelete={searchUnits.length > 0}
-                  />
-                ))}
-
-                {searchUnits.length === 0 && !isSearching && (
-                  <Card className="p-12 text-center">
-                    <Sparkles className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                    <h3 className="text-xl font-semibold md:text-2xl mb-2">
-                      Start exploring {readableDestination}
-                    </h3>
-                    <p className="text-muted-foreground">
-                      Ask any question or tap a suggested idea to generate a ready-to-run plan.
-                    </p>
-                  </Card>
-                )}
               </div>
             </div>
           </div>
         </div>
-      </section>
+      )}
 
       {/* Saved Items Sidebar */}
       <SavedItemsList
