@@ -228,8 +228,6 @@ export default function DynamicDestination() {
   };
 
   const heroSuggestionChips = primaryQueries.slice(0, 3);
-  const mainSuggestion = heroSuggestionChips[0] ?? "";
-  const cleanedSuggestion = sanitizeSuggestion(mainSuggestion);
 
   const heroHeadline = heroImage?.headline?.trim()
     || (destinationName ? `Experience ${destinationName} like a local` : heroContent.title);
@@ -238,17 +236,6 @@ export default function DynamicDestination() {
     || (destinationName
       ? `Plan smarter with real-time intel, trusted locals, and curated experiences across ${destinationName}.`
       : heroContent.subtitle);
-
-  const heroDescription = destinationName
-    ? `Tell us how you want to experience ${destinationName}; we'll stitch together restaurants, experiences, and logistics in minutes.`
-    : heroContent.description;
-
-  const heroCtaLabel = heroImage?.ctaLabel?.trim()
-    || (destinationName
-      ? cleanedSuggestion
-        ? `Plan ${destinationName}: ${cleanedSuggestion}`
-        : `Plan your ${destinationName} escape`
-      : "Start planning");
 
   const featuredPromotions = [
     {
