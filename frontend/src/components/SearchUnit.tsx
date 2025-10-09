@@ -1,4 +1,4 @@
-import { Globe, MapPin, Sparkles, Trash2 } from "lucide-react";
+import { MapPin, Trash2 } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
@@ -26,14 +26,6 @@ interface SearchUnitData {
   refinedTitle?: string;
 }
 
-interface AdUnit {
-  id: string;
-  title: string;
-  description: string;
-  sponsor: string;
-  url?: string;
-}
-
 interface SearchUnitProps {
   unit: SearchUnitData;
   cityName: string;
@@ -43,60 +35,6 @@ interface SearchUnitProps {
   savedItemIds?: Set<string>;
   onDelete?: (id: string) => void;
   showDelete?: boolean;
-}
-
-// Generate dynamic ads based on city and query
-function generateAds(cityName: string, query: string): AdUnit[] {
-  const baseAds: AdUnit[] = [
-    {
-      id: `ad-1-${Date.now()}`,
-      sponsor: "Booking.com",
-      title: `Hotels in ${cityName} - Up to 50% Off`,
-      description: `Book now and save on ${cityName} hotels. Free cancellation on most rooms. Price guarantee. 24/7 customer service.`
-    },
-    {
-      id: `ad-2-${Date.now()}`,
-      sponsor: "GetYourGuide",
-      title: `${cityName} Tours & Activities - Book Online`,
-      description: `Skip-the-line tickets • Expert guides • Small groups • Free cancellation. Best price guaranteed for all ${cityName} attractions.`
-    },
-    {
-      id: `ad-3-${Date.now()}`,
-      sponsor: "TripAdvisor",
-      title: `${cityName} Restaurant Reservations`,
-      description: `Reserve tables at top-rated restaurants. Read millions of reviews. Find the perfect dining experience in ${cityName}.`
-    }
-  ];
-
-  // Add query-specific ads
-  if (query.toLowerCase().includes("food") || query.toLowerCase().includes("restaurant") || query.toLowerCase().includes("eat")) {
-    baseAds.unshift({
-      id: `ad-food-${Date.now()}`,
-      sponsor: "OpenTable",
-      title: `Book ${cityName} Restaurants - Earn Points`,
-      description: `Instant confirmation • 1000+ restaurants • Earn dining rewards. Find and book the perfect table.`
-    });
-  }
-
-  if (query.toLowerCase().includes("hotel") || query.toLowerCase().includes("stay") || query.toLowerCase().includes("accommodation")) {
-    baseAds.unshift({
-      id: `ad-hotel-${Date.now()}`,
-      sponsor: "Expedia",
-      title: `${cityName} Hotels + Flight Packages`,
-      description: `Save up to 30% when you book flight and hotel together. Member prices available.`
-    });
-  }
-
-  if (query.toLowerCase().includes("pizza")) {
-    baseAds.unshift({
-      id: `ad-pizza-${Date.now()}`,
-      sponsor: "Uber Eats",
-      title: `${cityName} Pizza Delivery - Order Now`,
-      description: `Get pizza delivered fast. Track your order in real-time. Special offers available.`
-    });
-  }
-
-  return baseAds.slice(0, 4);
 }
 
 export function SearchUnit({
@@ -109,8 +47,6 @@ export function SearchUnit({
   onDelete,
   showDelete = false
 }: SearchUnitProps) {
-  // Generate ads dynamically based on current query - no useState to ensure they update
-  const ads = generateAds(cityName, unit.query);
   const unitRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to latest unit
@@ -174,153 +110,95 @@ export function SearchUnit({
   return (
     <div
       ref={unitRef}
-      className={`search-unit mb-8 ${isLatest ? 'animate-slide-down' : ''}`}
+      className={`search-unit ${isLatest ? 'animate-slide-down' : ''}`}
     >
-      {/* Ad Block - Top (always show) */}
-      <Card className="mb-4 p-4 bg-slate-50/50 dark:bg-slate-900/20 border">
-        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
-          <Globe className="w-3 h-3" />
-          <span>Sponsored</span>
-        </div>
-        <div className="space-y-3">
-          {ads.slice(0, 2).map((ad) => (
-            <div
-              key={ad.id}
-              className="bg-background p-3 rounded-lg border hover:shadow-sm transition-shadow cursor-pointer"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-2 py-0.5 rounded">
-                      Ad
-                    </span>
-                    <span className="text-xs text-muted-foreground">{ad.sponsor}</span>
-                  </div>
-                  <h4 className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">
-                    {ad.title}
-                  </h4>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {ad.description}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
       {/* Main Content Unit */}
-      <Card className="p-6 shadow-lg hover:shadow-xl transition-shadow">
-        {/* Query Header */}
-        <div className="pb-4 mb-4 border-b">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary" />
-                {unit.refinedTitle || unit.query}
-              </h3>
-              {unit.refinedTitle && unit.refinedTitle !== unit.query && (
-                <p className="text-sm text-muted-foreground mt-1 ml-6">
-                  Search: "{unit.query}"
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">
-                {new Date(unit.timestamp).toLocaleTimeString()}
-              </span>
-              {showDelete && onDelete && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => onDelete(unit.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
+      <Card className="relative overflow-hidden rounded-lg border border-border bg-card transition-all hover:border-primary/30 hover:shadow-md">
+        {/* Left accent border */}
+        <div className="absolute left-0 top-0 h-full w-1 bg-primary/60" />
 
-        {/* Response Content */}
-        <div className="travel-content text-base leading-relaxed">
-          {unit.isStreaming ? (
-            <div className="flex items-center gap-2 mb-4">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-              <span className="text-sm text-muted-foreground">
-                Searching {cityName}...
-              </span>
-            </div>
-          ) : null}
-
-          <div className="space-y-2">
-            {renderSaveableContent(unit.response)}
-          </div>
-        </div>
-
-        {/* Related Places (if any) */}
-        {unit.searchResults && unit.searchResults.length > 0 && (
-          <div className="mt-4 pt-4 border-t">
-            <div className="text-sm font-medium mb-3 flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
-              Related Places
-            </div>
-            <div className="space-y-2">
-              {unit.searchResults.map((place, idx) => (
-                <div key={idx} className="p-2 bg-muted/50 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-sm">{place.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {place.isOpen !== undefined && (
-                          <span className={place.isOpen ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                            {place.isOpen ? "Open now" : "Closed"}
-                          </span>
-                        )}
-                        {place.rating && <span className="ml-1">• {place.rating}★</span>}
-                        {place.priceLevel && <span className="ml-1">• {place.priceLevel}</span>}
-                      </div>
-                    </div>
-                    <Button size="sm" variant="ghost">Directions</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </Card>
-
-      {/* Ad Block - Bottom (always show) */}
-      <Card className="mt-4 p-4 bg-slate-50/50 dark:bg-slate-900/20 border">
-        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
-          <Globe className="w-3 h-3" />
-          <span>Sponsored</span>
-        </div>
-        <div className="space-y-3">
-          {ads.slice(2, 4).map((ad) => (
-            <div
-              key={ad.id}
-              className="bg-background p-3 rounded-lg border hover:shadow-sm transition-shadow cursor-pointer"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-2 py-0.5 rounded">
-                      Ad
-                    </span>
-                    <span className="text-xs text-muted-foreground">{ad.sponsor}</span>
-                  </div>
-                  <h4 className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">
-                    {ad.title}
-                  </h4>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {ad.description}
+        <div className="pl-5 pr-6 py-5">
+          {/* Query Header */}
+          <div className="mb-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="text-xl font-semibold text-primary leading-tight mb-1">
+                  {unit.refinedTitle || unit.query}
+                </h3>
+                {unit.refinedTitle && unit.refinedTitle !== unit.query && (
+                  <p className="text-sm text-muted-foreground">
+                    Search: "{unit.query}"
                   </p>
-                </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {new Date(unit.timestamp).toLocaleTimeString()}
+                </span>
+                {showDelete && onDelete && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => onDelete(unit.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             </div>
-          ))}
+          </div>
+
+          {/* Response Content */}
+          <div className="travel-content text-[15px] leading-relaxed">
+            {unit.isStreaming ? (
+              <div className="flex items-center gap-3 py-2">
+                <div className="flex gap-1">
+                  <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
+                  <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
+                  <div className="h-2 w-2 animate-bounce rounded-full bg-primary" />
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  Searching {cityName}...
+                </span>
+              </div>
+            ) : null}
+
+            <div className="space-y-3">
+              {renderSaveableContent(unit.response)}
+            </div>
+          </div>
+
+          {/* Related Places (if any) */}
+          {unit.searchResults && unit.searchResults.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-border/60">
+              <div className="text-sm font-semibold mb-3 flex items-center gap-2 text-foreground">
+                <MapPin className="w-4 h-4 text-primary" />
+                Related Places
+              </div>
+              <div className="space-y-2">
+                {unit.searchResults.map((place, idx) => (
+                  <div key={idx} className="rounded-md border border-border bg-muted/40 p-3 hover:bg-muted/60 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-sm">{place.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {place.isOpen !== undefined && (
+                            <span className={place.isOpen ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                              {place.isOpen ? "Open now" : "Closed"}
+                            </span>
+                          )}
+                          {place.rating && <span className="ml-1">• {place.rating}★</span>}
+                          {place.priceLevel && <span className="ml-1">• {place.priceLevel}</span>}
+                        </div>
+                      </div>
+                      <Button size="sm" variant="ghost">Directions</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </Card>
     </div>

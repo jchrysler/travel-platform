@@ -300,8 +300,14 @@ export default function DynamicDestination() {
       isStreaming: true
     };
     setSearchUnits(prev => [newUnit, ...prev]);
+
+    // Scroll to results area with offset for ads
     requestAnimationFrame(() => {
-      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (resultsRef.current) {
+        const yOffset = -120; // Offset to show ads and some context
+        const y = resultsRef.current.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
     });
 
     try {
@@ -555,11 +561,11 @@ export default function DynamicDestination() {
         </div>
       </section>
 
-      <section ref={resultsRef} className="relative z-10 -mt-8 pb-24">
-        <div className="container mx-auto max-w-5xl px-4">
+      <section ref={resultsRef} className="relative z-10 pb-24">
+        <div className="container mx-auto max-w-4xl px-4 pt-6">
           {/* Sidebar Toggle */}
           {!isSidebarOpen && (
-            <div className="mb-4">
+            <div className="mb-5">
               <Button
                 variant="outline"
                 size="sm"
@@ -573,22 +579,39 @@ export default function DynamicDestination() {
           )}
 
           {/* Main Content Area */}
-          <div className="space-y-6">
-            {/* Ad 1 */}
+          <div className="space-y-3">
+            {/* Two Ads at Top */}
             <a
               href={featuredPromotions[0].url}
-              className="block rounded-lg border border-border bg-card p-5 transition hover:border-primary/40 hover:shadow-md"
+              className="block rounded-md border border-border bg-muted/30 p-4 transition hover:bg-muted/50"
             >
-              <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
                 <span className="font-medium">{featuredPromotions[0].tag}</span>
                 <span>·</span>
                 <span>{featuredPromotions[0].vendor}</span>
               </div>
-              <h3 className="text-xl font-semibold text-primary hover:underline">
+              <h3 className="text-lg font-medium text-primary hover:underline">
                 {featuredPromotions[0].title}
               </h3>
-              <p className="mt-1.5 text-sm leading-relaxed">
+              <p className="mt-1 text-sm leading-relaxed text-foreground/80">
                 {featuredPromotions[0].body}
+              </p>
+            </a>
+
+            <a
+              href={featuredPromotions[1].url}
+              className="block rounded-md border border-border bg-muted/30 p-4 transition hover:bg-muted/50"
+            >
+              <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-medium">{featuredPromotions[1].tag}</span>
+                <span>·</span>
+                <span>{featuredPromotions[1].vendor}</span>
+              </div>
+              <h3 className="text-lg font-medium text-primary hover:underline">
+                {featuredPromotions[1].title}
+              </h3>
+              <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                {featuredPromotions[1].body}
               </p>
             </a>
 
@@ -607,29 +630,9 @@ export default function DynamicDestination() {
               />
             ))}
 
-            {/* Ad 2 */}
-            {searchUnits.length > 0 && (
-              <a
-                href={featuredPromotions[1].url}
-                className="block rounded-lg border border-border bg-card p-5 transition hover:border-primary/40 hover:shadow-md"
-              >
-                <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="font-medium">{featuredPromotions[1].tag}</span>
-                  <span>·</span>
-                  <span>{featuredPromotions[1].vendor}</span>
-                </div>
-                <h3 className="text-xl font-semibold text-primary hover:underline">
-                  {featuredPromotions[1].title}
-                </h3>
-                <p className="mt-1.5 text-sm leading-relaxed">
-                  {featuredPromotions[1].body}
-                </p>
-              </a>
-            )}
-
             {/* Empty State */}
             {searchUnits.length === 0 && !isSearching && (
-              <Card className="p-12 text-center">
+              <Card className="mt-8 p-12 text-center">
                 <Sparkles className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                 <h3 className="mb-2 text-xl font-semibold md:text-2xl">
                   Start exploring {readableDestination}
