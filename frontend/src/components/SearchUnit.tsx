@@ -80,7 +80,7 @@ export function SearchUnit({
 
       if (isHeaderOnly) {
         acc.push(
-          <div key={elementKey} className="leading-relaxed text-[15px] [&>p]:mb-3">
+          <div key={elementKey} className="leading-relaxed text-base [&>p]:mb-2">
             <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(normalized) }} />
           </div>
         );
@@ -88,7 +88,7 @@ export function SearchUnit({
       }
 
       acc.push(
-        <div key={index} className="space-y-3">
+        <div key={index} className="mb-2">
           <SaveableContent
             content={paragraph}
             queryContext={unit.query}
@@ -97,7 +97,7 @@ export function SearchUnit({
           >
             <div
               dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(paragraph) }}
-              className="leading-relaxed text-[15px] [&>p]:mb-3 [&>ul]:ml-4 [&>ul]:my-3 [&>ul>li]:ml-1 [&>ul>li]:py-1"
+              className="leading-relaxed text-base [&>p]:mb-2 [&>ul]:ml-4 [&>ul]:my-2 [&>ul>li]:ml-1 [&>ul>li]:py-0.5"
             />
           </SaveableContent>
         </div>
@@ -113,11 +113,8 @@ export function SearchUnit({
       className={`search-unit ${isLatest ? 'animate-slide-down' : ''}`}
     >
       {/* Main Content Unit */}
-      <Card className="relative overflow-hidden rounded-lg border border-border bg-card transition-all hover:border-primary/30 hover:shadow-md">
-        {/* Left accent border */}
-        <div className="absolute left-0 top-0 h-full w-1 bg-primary/60" />
-
-        <div className="pl-5 pr-6 py-5">
+      <Card className="rounded-lg border border-border bg-card transition-all hover:border-primary/30 hover:shadow-md">
+        <div className="px-6 py-5">
           {/* Query Header */}
           <div className="mb-4">
             <div className="flex items-start justify-between gap-4">
@@ -150,7 +147,7 @@ export function SearchUnit({
           </div>
 
           {/* Response Content */}
-          <div className="travel-content text-[15px] leading-relaxed">
+          <div className="travel-content">
             {unit.isStreaming ? (
               <div className="flex items-center gap-3 py-2">
                 <div className="flex gap-1">
@@ -164,7 +161,7 @@ export function SearchUnit({
               </div>
             ) : null}
 
-            <div className="space-y-3">
+            <div>
               {renderSaveableContent(unit.response)}
             </div>
           </div>

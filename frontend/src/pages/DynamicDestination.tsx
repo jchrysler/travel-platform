@@ -252,13 +252,39 @@ export default function DynamicDestination() {
       const guides = getDestinationGuides(destinationSlug);
       setExistingGuides(guides);
 
-      // If we have a draft ID in the URL, set it
+      // If we have a draft ID in the URL, load it from localStorage
       if (mode === 'draft' && id) {
         setDraftId(id);
-        // TODO: Load draft from localStorage if exists
+        try {
+          const storedDraft = localStorage.getItem(`draft_${id}`);
+          if (storedDraft) {
+            const parsed = JSON.parse(storedDraft);
+            if (Array.isArray(parsed)) {
+              // Restore timestamps as Date objects
+              const restoredUnits = parsed.map(unit => ({
+                ...unit,
+                timestamp: new Date(unit.timestamp)
+              }));
+              setSearchUnits(restoredUnits);
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to load draft from localStorage', error);
+        }
       }
     }
-  }, [destination, destinationName, mode, id]);
+  }, [destination, destinationName, destinationSlug, mode, id]);
+
+  // Persist searchUnits to localStorage whenever they change (if we have a draftId)
+  useEffect(() => {
+    if (draftId && searchUnits.length > 0) {
+      try {
+        localStorage.setItem(`draft_${draftId}`, JSON.stringify(searchUnits));
+      } catch (error) {
+        console.warn('Failed to save draft to localStorage', error);
+      }
+    }
+  }, [searchUnits, draftId]);
 
   const handleCustomSearch = async () => {
     if (!customQuery.trim() || !destination) return;
@@ -301,14 +327,12 @@ export default function DynamicDestination() {
     };
     setSearchUnits(prev => [newUnit, ...prev]);
 
-    // Scroll to results area with offset for ads
-    requestAnimationFrame(() => {
+    // Scroll to results area to show ads at top
+    setTimeout(() => {
       if (resultsRef.current) {
-        const yOffset = -120; // Offset to show ads and some context
-        const y = resultsRef.current.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        window.scrollTo({ top: y, behavior: "smooth" });
+        resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       }
-    });
+    }, 100);
 
     try {
       const response = await fetch("/api/travel/explore", {
@@ -463,6 +487,15 @@ export default function DynamicDestination() {
 
     // Fire-and-forget backend persistence (best effort)
     void submitGuideToBackend(finalTitle, finalDescription, backendSections);
+
+    // Clear draft from localStorage
+    if (draftId) {
+      try {
+        localStorage.removeItem(`draft_${draftId}`);
+      } catch (error) {
+        console.warn('Failed to clear draft from localStorage', error);
+      }
+    }
 
     // Navigate to the new guide
       navigate(`/explore/${destinationSlug}/${guide.slug}`);
