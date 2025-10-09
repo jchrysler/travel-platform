@@ -114,6 +114,8 @@ export default function DynamicDestination() {
   const [heroImage, setHeroImage] = useState<HeroImageRecord | null>(null);
   const [isGeneratingHero, setIsGeneratingHero] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isScrolledPastHero, setIsScrolledPastHero] = useState(false);
+  const firstAdRef = useRef<HTMLAnchorElement>(null);
 
   const heroContent = getDestinationHeroContent(destination ?? "");
   const readableDestination = destinationName || "this destination";
@@ -286,6 +288,21 @@ export default function DynamicDestination() {
     }
   }, [searchUnits, draftId]);
 
+  // Detect when user scrolls past hero section
+  useEffect(() => {
+    const handleScroll = () => {
+      if (resultsRef.current) {
+        const rect = resultsRef.current.getBoundingClientRect();
+        setIsScrolledPastHero(rect.top < 100);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // Check initial state
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const handleCustomSearch = async () => {
     if (!customQuery.trim() || !destination) return;
     await performSearch(customQuery);
@@ -327,12 +344,12 @@ export default function DynamicDestination() {
     };
     setSearchUnits(prev => [newUnit, ...prev]);
 
-    // Scroll to results area to show ads at top
+    // Scroll to first ad to show results prominently
     setTimeout(() => {
-      if (resultsRef.current) {
-        resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (firstAdRef.current) {
+        firstAdRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       }
-    }, 100);
+    }, 300);
 
     try {
       const response = await fetch("/api/travel/explore", {
@@ -615,6 +632,7 @@ export default function DynamicDestination() {
           <div className="space-y-3">
             {/* Two Ads at Top */}
             <a
+              ref={firstAdRef}
               href={featuredPromotions[0].url}
               className="block rounded-md border border-border bg-muted/30 p-4 transition hover:bg-muted/50"
             >
@@ -919,6 +937,70 @@ export default function DynamicDestination() {
             </div>
           </Card>
         </div>
+      )}
+
+      {/* Floating/Sticky Search Box */}
+      {isScrolledPastHero && (
+        <>
+          {/* Mobile: Floating Bottom Search */}
+          <div className="fixed inset-x-0 z-40 md:hidden" style={{ bottom: 'max(env(safe-area-inset-bottom), 1rem)' }}>
+            <div className="mx-4 rounded-lg border border-border bg-background/95 p-3 shadow-lg backdrop-blur-md transition-transform duration-300">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleCustomSearch();
+                }}
+                className="flex gap-2"
+              >
+                <Input
+                  value={customQuery}
+                  onChange={(e) => setCustomQuery(e.target.value)}
+                  placeholder={`Search ${readableDestination}...`}
+                  disabled={isSearching}
+                  className="h-12 flex-1"
+                />
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={isSearching || !customQuery.trim()}
+                  className="h-12 px-4"
+                >
+                  <Search className="h-5 w-5" />
+                </Button>
+              </form>
+            </div>
+          </div>
+
+          {/* Desktop: Sticky Top Search */}
+          <div className="sticky top-0 z-40 hidden border-b border-border bg-background/95 backdrop-blur-sm md:block">
+            <div className="container mx-auto max-w-4xl px-4 py-3">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleCustomSearch();
+                }}
+                className="flex gap-2"
+              >
+                <Input
+                  value={customQuery}
+                  onChange={(e) => setCustomQuery(e.target.value)}
+                  placeholder={`Search ${readableDestination}...`}
+                  disabled={isSearching}
+                  className="h-12 flex-1"
+                />
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={isSearching || !customQuery.trim()}
+                  className="h-12 px-6"
+                >
+                  <Search className="mr-2 h-5 w-5" />
+                  Search
+                </Button>
+              </form>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
