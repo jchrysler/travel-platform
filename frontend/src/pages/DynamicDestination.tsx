@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Search, Sparkles, MapPin, BookOpen, Save, PanelRightOpen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { SearchUnit } from "@/components/SearchUnit";
 import { SavedItemsList } from "@/components/SavedItemsList";
 import type { SavedItem } from "@/components/SaveableContent";
 import { deslugify, slugify } from "@/utils/slugify";
+import { cn } from "@/lib/utils";
 import {
   trackDestinationVisit,
   getDestinationGuides,
@@ -115,7 +116,7 @@ export default function DynamicDestination() {
   const [isGeneratingHero, setIsGeneratingHero] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScrolledPastHero, setIsScrolledPastHero] = useState(false);
-  const firstAdRef = useRef<HTMLAnchorElement>(null);
+  const [hasUserSearched, setHasUserSearched] = useState(false);
 
   const heroContent = getDestinationHeroContent(destination ?? "");
   const readableDestination = destinationName || "this destination";
@@ -245,6 +246,14 @@ export default function DynamicDestination() {
     },
   ];
 
+  const followUpSuggestions = searchUnits.slice(0, 3).map((unit) => ({
+    id: unit.id,
+    query: unit.query,
+    label: refinedTitles.get(unit.id) || refineQueryToTitle(unit.query, destinationName),
+  }));
+
+  const shouldShowFloatingSearch = hasUserSearched || searchUnits.length > 0;
+
   useEffect(() => {
     if (destination) {
       // Track visit
@@ -268,6 +277,14 @@ export default function DynamicDestination() {
                 timestamp: new Date(unit.timestamp)
               }));
               setSearchUnits(restoredUnits);
+              if (restoredUnits.length > 0) {
+                const restoredTitles = new Map<string, string>();
+                restoredUnits.forEach((unit) => {
+                  restoredTitles.set(unit.id, refineQueryToTitle(unit.query, destinationName));
+                });
+                setRefinedTitles(restoredTitles);
+                setHasUserSearched(true);
+              }
             }
           }
         } catch (error) {
@@ -288,6 +305,23 @@ export default function DynamicDestination() {
     }
   }, [searchUnits, draftId]);
 
+  useEffect(() => {
+    if (searchUnits.length > 0) {
+      setHasUserSearched(true);
+    }
+  }, [searchUnits.length]);
+
+  useEffect(() => {
+    if (!hasUserSearched || searchUnits.length === 0) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToResults();
+      });
+    });
+  }, [hasUserSearched, searchUnits.length, scrollToResults]);
+
   // Detect when user scrolls past hero section
   useEffect(() => {
     const handleScroll = () => {
@@ -301,7 +335,7 @@ export default function DynamicDestination() {
     handleScroll(); // Check initial state
 
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [hasUserSearched]);
 
   const handleCustomSearch = async () => {
     if (!customQuery.trim() || !destination) return;
@@ -316,6 +350,16 @@ export default function DynamicDestination() {
   };
 
 
+  const scrollToResults = useCallback(() => {
+    if (!resultsRef.current) return;
+    const targetRect = resultsRef.current.getBoundingClientRect();
+    const targetY = targetRect.top + window.scrollY - 16;
+    window.scrollTo({
+      top: Math.max(targetY, 0),
+      behavior: "smooth",
+    });
+  }, []);
+
   const performSearch = async (query: string) => {
     if (!destination) return;
 
@@ -329,6 +373,7 @@ export default function DynamicDestination() {
     setIsSearching(true);
     const unitId = Date.now().toString();
     setCurrentStreamingId(unitId);
+    setHasUserSearched(true);
 
     // Generate refined title for this query
     const refinedTitle = refineQueryToTitle(query, destinationName);
@@ -344,12 +389,12 @@ export default function DynamicDestination() {
     };
     setSearchUnits(prev => [newUnit, ...prev]);
 
-    // Scroll to first ad to show results prominently
-    setTimeout(() => {
-      if (firstAdRef.current) {
-        firstAdRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    }, 300);
+    // Scroll to results area to show ads prominently
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToResults();
+      });
+    });
 
     try {
       const response = await fetch("/api/travel/explore", {
@@ -538,7 +583,14 @@ export default function DynamicDestination() {
           )}
         </div>
         <div className="relative z-10">
-          <div className="container mx-auto flex min-h-[520px] max-w-6xl flex-col justify-end gap-8 px-4 py-24">
+          <div
+            className={cn(
+              "container mx-auto flex max-w-6xl flex-col justify-end gap-8 px-4 transition-all duration-500",
+              hasUserSearched
+                ? "min-h-[320px] py-16 md:min-h-[420px] md:py-20"
+                : "min-h-[520px] py-24"
+            )}
+          >
             <div className="flex flex-col gap-6 text-white md:max-w-3xl">
               <Link
                 to="/explore"
@@ -632,7 +684,6 @@ export default function DynamicDestination() {
           <div className="space-y-3">
             {/* Two Ads at Top */}
             <a
-              ref={firstAdRef}
               href={featuredPromotions[0].url}
               className="block rounded-md border border-border bg-muted/30 p-4 transition hover:bg-muted/50"
             >
@@ -940,64 +991,117 @@ export default function DynamicDestination() {
       )}
 
       {/* Floating/Sticky Search Box */}
-      {isScrolledPastHero && (
+      {shouldShowFloatingSearch && (
         <>
           {/* Mobile: Floating Bottom Search */}
-          <div className="fixed inset-x-0 z-40 md:hidden" style={{ bottom: 'max(env(safe-area-inset-bottom), 1rem)' }}>
-            <div className="mx-4 rounded-lg border border-border bg-background/95 p-3 shadow-lg backdrop-blur-md transition-transform duration-300">
+          <div
+            className="pointer-events-none fixed inset-x-0 z-40 pb-5 md:hidden"
+            style={{ bottom: 'max(env(safe-area-inset-bottom), 1rem)' }}
+          >
+            <div
+              className={cn(
+                "pointer-events-auto mx-4 overflow-hidden rounded-3xl border border-border/60 bg-background/95 px-4 py-3 shadow-2xl backdrop-blur-md transition-all duration-300",
+                isScrolledPastHero ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+              )}
+            >
+              <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span>Keep planning {readableDestination}</span>
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleCustomSearch();
                 }}
-                className="flex gap-2"
+                className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background px-3 py-2 shadow-sm"
               >
+                <Search className="h-5 w-5 text-muted-foreground" />
                 <Input
                   value={customQuery}
                   onChange={(e) => setCustomQuery(e.target.value)}
-                  placeholder={`Search ${readableDestination}...`}
+                  placeholder={`Ask more about ${readableDestination}`}
                   disabled={isSearching}
-                  className="h-12 flex-1"
+                  className="h-11 flex-1 border-none bg-transparent px-0 text-base focus-visible:border-none focus-visible:ring-0 focus-visible:outline-none"
                 />
                 <Button
                   type="submit"
-                  size="lg"
+                  size="icon"
                   disabled={isSearching || !customQuery.trim()}
-                  className="h-12 px-4"
+                  className="h-11 w-11 rounded-full"
                 >
                   <Search className="h-5 w-5" />
                 </Button>
               </form>
+              {followUpSuggestions.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {followUpSuggestions.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => handleSuggestedSearch(item.query)}
+                      className="rounded-full border border-border/70 bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground transition hover:border-primary hover:text-primary"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Desktop: Sticky Top Search */}
-          <div className="sticky top-0 z-40 hidden border-b border-border bg-background/95 backdrop-blur-sm md:block">
-            <div className="container mx-auto max-w-4xl px-4 py-3">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleCustomSearch();
-                }}
-                className="flex gap-2"
-              >
-                <Input
-                  value={customQuery}
-                  onChange={(e) => setCustomQuery(e.target.value)}
-                  placeholder={`Search ${readableDestination}...`}
-                  disabled={isSearching}
-                  className="h-12 flex-1"
-                />
-                <Button
-                  type="submit"
-                  size="lg"
-                  disabled={isSearching || !customQuery.trim()}
-                  className="h-12 px-6"
+          <div
+            className={cn(
+              "sticky top-0 z-40 hidden border-b border-border/60 bg-background/90 backdrop-blur-sm transition-all duration-300 md:block",
+              isScrolledPastHero ? "shadow-sm" : ""
+            )}
+          >
+            <div className="container mx-auto max-w-5xl px-4 py-3">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="hidden items-center gap-2 text-sm text-muted-foreground lg:flex">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <span>Ask a follow-up to keep refining your {destinationName} plan</span>
+                  </div>
+                  {followUpSuggestions.length > 0 && (
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {followUpSuggestions.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleSuggestedSearch(item.query)}
+                          className="rounded-full border border-border/70 bg-muted/30 px-3 py-1 font-medium text-muted-foreground transition hover:border-primary hover:text-primary"
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleCustomSearch();
+                  }}
+                  className="flex items-center gap-3 rounded-full border border-border/60 bg-background px-5 py-2 shadow-sm"
                 >
-                  <Search className="mr-2 h-5 w-5" />
-                  Search
-                </Button>
-              </form>
+                  <Search className="h-5 w-5 text-muted-foreground" />
+                  <Input
+                    value={customQuery}
+                    onChange={(e) => setCustomQuery(e.target.value)}
+                    placeholder={`Ask anything about ${readableDestination}…`}
+                    disabled={isSearching}
+                    className="h-11 flex-1 border-none bg-transparent px-0 text-base focus-visible:border-none focus-visible:ring-0 focus-visible:outline-none"
+                  />
+                  <Button
+                    type="submit"
+                    disabled={isSearching || !customQuery.trim()}
+                    className="h-11 rounded-full px-6 text-base font-medium"
+                  >
+                    Ask
+                  </Button>
+                </form>
+              </div>
             </div>
           </div>
         </>

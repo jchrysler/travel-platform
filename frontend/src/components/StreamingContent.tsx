@@ -86,56 +86,7 @@ export function StreamingContent({
       )}
 
       {/* Content - no container, flows naturally */}
-      <div className="travel-content text-base leading-relaxed">
-        <style>{`
-          .travel-content ul {
-            padding-left: 1.5rem;
-          }
-          .travel-content li {
-            padding-left: 0.5rem;
-          }
-          .travel-content h1 {
-            font-size: 1.875rem;
-            line-height: 2.25rem;
-            font-weight: 700;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
-          }
-          .travel-content h2 {
-            font-size: 1.5rem;
-            line-height: 2rem;
-            font-weight: 700;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
-          }
-          .travel-content h3 {
-            font-size: 1.25rem;
-            line-height: 1.75rem;
-            font-weight: 600;
-            margin-top: 1.5rem;
-            margin-bottom: 0.75rem;
-          }
-          .travel-content h4 {
-            font-size: 1.125rem;
-            line-height: 1.5rem;
-            font-weight: 600;
-            margin-top: 1rem;
-            margin-bottom: 0.5rem;
-          }
-          .travel-content p {
-            margin-bottom: 1rem;
-          }
-          .travel-content hr {
-            margin: 2rem 0;
-            border-color: rgba(0,0,0,0.1);
-          }
-          .dark .travel-content hr {
-            border-color: rgba(255,255,255,0.1);
-          }
-          .travel-content > *:first-child {
-            margin-top: 0;
-          }
-        `}</style>
+      <div className="travel-content [&_a]:text-primary [&_a]:underline [&_strong]:font-semibold">
         <div
           dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(content) }}
         />

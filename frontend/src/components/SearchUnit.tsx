@@ -80,7 +80,10 @@ export function SearchUnit({
 
       if (isHeaderOnly) {
         acc.push(
-          <div key={elementKey} className="leading-relaxed text-base [&>p]:mb-2">
+          <div
+            key={elementKey}
+            className="travel-content font-semibold [&_h1]:text-primary [&_h2]:text-primary [&_h3]:text-primary"
+          >
             <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(normalized) }} />
           </div>
         );
@@ -88,7 +91,7 @@ export function SearchUnit({
       }
 
       acc.push(
-        <div key={index} className="mb-2">
+        <div key={elementKey} className="mb-3 last:mb-0">
           <SaveableContent
             content={paragraph}
             queryContext={unit.query}
@@ -97,7 +100,7 @@ export function SearchUnit({
           >
             <div
               dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(paragraph) }}
-              className="leading-relaxed text-base [&>p]:mb-2 [&>ul]:ml-4 [&>ul]:my-2 [&>ul>li]:ml-1 [&>ul>li]:py-0.5"
+              className="travel-content [&_a]:text-primary [&_a]:underline [&_strong]:text-foreground [&_em]:text-muted-foreground"
             />
           </SaveableContent>
         </div>
@@ -146,25 +149,25 @@ export function SearchUnit({
             </div>
           </div>
 
-          {/* Response Content */}
-          <div className="travel-content">
-            {unit.isStreaming ? (
-              <div className="flex items-center gap-3 py-2">
-                <div className="flex gap-1">
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-primary" />
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  Searching {cityName}...
-                </span>
+        {/* Response Content */}
+        <div className="flex flex-col gap-4">
+          {unit.isStreaming ? (
+            <div className="flex items-center gap-3 py-2">
+              <div className="flex gap-1">
+                <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
+                <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
+                <div className="h-2 w-2 animate-bounce rounded-full bg-primary" />
               </div>
-            ) : null}
-
-            <div>
-              {renderSaveableContent(unit.response)}
+              <span className="text-sm text-muted-foreground">
+                Searching {cityName}...
+              </span>
             </div>
+          ) : null}
+
+          <div className="flex flex-col">
+            {renderSaveableContent(unit.response)}
           </div>
+        </div>
 
           {/* Related Places (if any) */}
           {unit.searchResults && unit.searchResults.length > 0 && (
