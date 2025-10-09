@@ -330,7 +330,7 @@ export default function DynamicDestination() {
         scrollToResults();
       });
     });
-  }, [hasUserSearched, searchUnits.length, scrollToResults]);
+  }, [hasUserSearched, searchUnits.length]);
 
   // Detect when user scrolls past hero section
   useEffect(() => {
