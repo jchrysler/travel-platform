@@ -213,20 +213,6 @@ export default function DynamicDestination() {
   const bucketQueries = heroContent.searchBuckets?.flatMap((bucket) => bucket.queries) ?? [];
   const combinedPopularQueries = Array.from(new Set([...primaryQueries, ...bucketQueries]));
 
-  const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-  const sanitizeSuggestion = (query: string) => {
-    let cleaned = (query || "").trim();
-    if (!cleaned) return "";
-    cleaned = cleaned.replace(/[?!.]+$/, "").trim();
-    if (destinationName) {
-      const pattern = new RegExp(`^${escapeRegExp(destinationName)}[:\-–]?\s*`, "i");
-      cleaned = cleaned.replace(pattern, "").trim();
-    }
-    cleaned = cleaned.replace(/^try[:\-]?\s*/i, "").trim();
-    return cleaned;
-  };
-
   const heroSuggestionChips = primaryQueries.slice(0, 3);
 
   const heroHeadline = heroImage?.headline?.trim()
