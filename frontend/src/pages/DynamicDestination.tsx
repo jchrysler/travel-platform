@@ -305,6 +305,16 @@ export default function DynamicDestination() {
     }
   }, [searchUnits, draftId]);
 
+  const scrollToResults = useCallback(() => {
+    if (!resultsRef.current) return;
+    const targetRect = resultsRef.current.getBoundingClientRect();
+    const targetY = targetRect.top + window.scrollY - 16;
+    window.scrollTo({
+      top: Math.max(targetY, 0),
+      behavior: "smooth",
+    });
+  }, []);
+
   useEffect(() => {
     if (searchUnits.length > 0) {
       setHasUserSearched(true);
@@ -348,17 +358,6 @@ export default function DynamicDestination() {
     setCustomQuery("");
     await performSearch(query);
   };
-
-
-  const scrollToResults = useCallback(() => {
-    if (!resultsRef.current) return;
-    const targetRect = resultsRef.current.getBoundingClientRect();
-    const targetY = targetRect.top + window.scrollY - 16;
-    window.scrollTo({
-      top: Math.max(targetY, 0),
-      behavior: "smooth",
-    });
-  }, []);
 
   const performSearch = async (query: string) => {
     if (!destination) return;
