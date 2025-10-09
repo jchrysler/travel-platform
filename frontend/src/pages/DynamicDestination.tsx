@@ -519,14 +519,11 @@ export default function DynamicDestination() {
                 {destinationName}
               </div>
 
-              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-7xl">
+              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
                 {heroHeadline}
               </h1>
-              <p className="text-xl font-semibold text-white/85 sm:text-2xl lg:text-3xl">
+              <p className="text-lg font-medium text-white/90 sm:text-xl md:text-2xl">
                 {heroSubheadline}
-              </p>
-              <p className="text-lg text-white/80 md:text-xl">
-                {heroDescription}
               </p>
 
               <form
@@ -534,23 +531,23 @@ export default function DynamicDestination() {
                   e.preventDefault();
                   handleCustomSearch();
                 }}
-                className="mt-2 flex flex-col gap-3 sm:flex-row"
+                className="mt-4 flex flex-col gap-3 sm:flex-row"
               >
                 <Input
                   value={customQuery}
                   onChange={(e) => setCustomQuery(e.target.value)}
-                placeholder={`What should we plan for ${readableDestination}?`}
+                  placeholder={`What should we plan for ${readableDestination}?`}
                   disabled={isSearching}
-                  className="h-14 flex-1 border-white/30 bg-white/15 text-lg text-white placeholder:text-white/70 shadow-lg backdrop-blur focus-visible:ring-white/80"
+                  className="h-16 flex-1 border-2 border-white/40 bg-white/20 text-xl text-white placeholder:text-white/70 shadow-xl backdrop-blur-sm focus-visible:border-white focus-visible:ring-white/80"
                 />
                 <Button
                   type="submit"
                   size="lg"
                   disabled={isSearching || !customQuery.trim()}
-                  className="h-14 px-8 text-lg shadow-lg"
+                  className="h-16 px-10 text-xl font-semibold shadow-xl"
                 >
-                  <Search className="mr-2 h-5 w-5" />
-                  {heroCtaLabel}
+                  <Search className="mr-2 h-6 w-6" />
+                  Search
                 </Button>
               </form>
 
