@@ -92,6 +92,9 @@ CREATE TABLE IF NOT EXISTS destination_hero_images (
     image_jpeg BYTEA,
     image_webp_size INTEGER NOT NULL,
     image_jpeg_size INTEGER,
+    headline TEXT,
+    subheadline TEXT,
+    cta_label VARCHAR(160),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     extra_metadata JSON

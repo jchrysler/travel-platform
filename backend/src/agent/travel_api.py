@@ -94,6 +94,9 @@ class HeroImageGeneratePayload(BaseModel):
     prompt_hint: Optional[str] = Field(None, alias="promptHint")
     prompt_override: Optional[str] = Field(None, alias="promptOverride")
     model: Optional[str] = Field(None, alias="model")
+    headline: Optional[str] = None
+    subheadline: Optional[str] = None
+    cta_label: Optional[str] = Field(None, alias="ctaLabel")
 
     class Config:
         allow_population_by_field_name = True
@@ -108,6 +111,9 @@ class HeroImageResponse(BaseModel):
     height: int
     image_webp: str = Field(..., serialization_alias="imageWebp")
     image_jpeg: Optional[str] = Field(None, serialization_alias="imageJpeg")
+    headline: Optional[str] = None
+    subheadline: Optional[str] = None
+    cta_label: Optional[str] = Field(None, serialization_alias="ctaLabel")
     updated_at: datetime = Field(..., serialization_alias="updatedAt")
 
     class Config:
@@ -301,6 +307,9 @@ def _serialize_hero_image(record: DestinationHeroImage) -> HeroImageResponse:
         height=record.height,
         image_webp=_encode_data_url("image/webp", record.image_webp),
         image_jpeg=_encode_data_url("image/jpeg", record.image_jpeg) if record.image_jpeg else None,
+        headline=record.headline,
+        subheadline=record.subheadline,
+        cta_label=record.cta_label,
         updated_at=record.updated_at,
     )
 
@@ -585,6 +594,9 @@ def create_travel_routes(app):
             height=generation["height"],
             image_webp=generation["webp_bytes"],
             image_jpeg=generation["jpeg_bytes"],
+            headline=payload.headline,
+            subheadline=payload.subheadline,
+            cta_label=payload.cta_label,
             metadata=metadata,
         )
 

@@ -465,6 +465,9 @@ def upsert_destination_hero_image(
     height: int,
     image_webp: bytes,
     image_jpeg: Optional[bytes],
+    headline: Optional[str] = None,
+    subheadline: Optional[str] = None,
+    cta_label: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
 ) -> DestinationHeroImage:
     record = (
@@ -485,6 +488,9 @@ def upsert_destination_hero_image(
         record.image_jpeg = image_jpeg
         record.image_webp_size = len(image_webp)
         record.image_jpeg_size = len(image_jpeg) if image_jpeg else None
+        record.headline = (headline or "").strip() or None
+        record.subheadline = (subheadline or "").strip() or None
+        record.cta_label = (cta_label or "").strip() or None
         record.extra_metadata = metadata_payload
     else:
         record = DestinationHeroImage(
@@ -498,6 +504,9 @@ def upsert_destination_hero_image(
             image_jpeg=image_jpeg,
             image_webp_size=len(image_webp),
             image_jpeg_size=len(image_jpeg) if image_jpeg else None,
+            headline=(headline or "").strip() or None,
+            subheadline=(subheadline or "").strip() or None,
+            cta_label=(cta_label or "").strip() or None,
             extra_metadata=metadata_payload,
         )
         db.add(record)

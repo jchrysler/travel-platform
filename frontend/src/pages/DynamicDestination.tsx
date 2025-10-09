@@ -48,7 +48,44 @@ interface HeroImageRecord {
   height: number;
   imageWebp: string;
   imageJpeg?: string | null;
+  headline?: string | null;
+  subheadline?: string | null;
+  ctaLabel?: string | null;
   updatedAt: string;
+}
+
+function normalizeHeroImageResponse(payload: any): HeroImageRecord {
+  const value = payload ?? {};
+  const coerceOptional = (input: unknown): string | null => {
+    if (typeof input === "string") {
+      const trimmed = input.trim();
+      return trimmed.length ? trimmed : null;
+    }
+    return null;
+  };
+
+  return {
+    destination: String(value.destination ?? value.destination_name ?? "").trim(),
+    destinationSlug: String(value.destinationSlug ?? value.destination_slug ?? "").trim(),
+    prompt: String(value.prompt ?? "").trim(),
+    promptVersion: String(value.promptVersion ?? value.prompt_version ?? "").trim(),
+    width: Number(value.width ?? 0),
+    height: Number(value.height ?? 0),
+    imageWebp: typeof value.imageWebp === "string"
+      ? value.imageWebp
+      : typeof value.image_webp === "string"
+        ? value.image_webp
+        : "",
+    imageJpeg: typeof value.imageJpeg === "string"
+      ? value.imageJpeg
+      : typeof value.image_jpeg === "string"
+        ? value.image_jpeg
+        : null,
+    headline: coerceOptional(value.headline),
+    subheadline: coerceOptional(value.subheadline),
+    ctaLabel: coerceOptional(value.ctaLabel ?? value.cta_label),
+    updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : String(value.updated_at ?? ""),
+  };
 }
 
 export default function DynamicDestination() {
@@ -103,7 +140,7 @@ export default function DynamicDestination() {
 
         if (response.ok) {
           const data = await response.json();
-          setHeroImage(data);
+          setHeroImage(normalizeHeroImageResponse(data));
         } else if (response.status === 404) {
           // No hero exists, generate one in the background
           setIsGeneratingHero(true);
@@ -116,7 +153,7 @@ export default function DynamicDestination() {
 
           if (generateResponse.ok) {
             const generatedData = await generateResponse.json();
-            setHeroImage(generatedData);
+            setHeroImage(normalizeHeroImageResponse(generatedData));
           }
         }
       } catch (error) {
@@ -175,6 +212,43 @@ export default function DynamicDestination() {
       : fallbackPrimaryQueries;
   const bucketQueries = heroContent.searchBuckets?.flatMap((bucket) => bucket.queries) ?? [];
   const combinedPopularQueries = Array.from(new Set([...primaryQueries, ...bucketQueries]));
+
+  const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const sanitizeSuggestion = (query: string) => {
+    let cleaned = (query || "").trim();
+    if (!cleaned) return "";
+    cleaned = cleaned.replace(/[?!.]+$/, "").trim();
+    if (destinationName) {
+      const pattern = new RegExp(`^${escapeRegExp(destinationName)}[:\-–]?\s*`, "i");
+      cleaned = cleaned.replace(pattern, "").trim();
+    }
+    cleaned = cleaned.replace(/^try[:\-]?\s*/i, "").trim();
+    return cleaned;
+  };
+
+  const heroSuggestionChips = primaryQueries.slice(0, 3);
+  const mainSuggestion = heroSuggestionChips[0] ?? "";
+  const cleanedSuggestion = sanitizeSuggestion(mainSuggestion);
+
+  const heroHeadline = heroImage?.headline?.trim()
+    || (destinationName ? `Experience ${destinationName} like a local` : heroContent.title);
+
+  const heroSubheadline = heroImage?.subheadline?.trim()
+    || (destinationName
+      ? `Plan smarter with real-time intel, trusted locals, and curated experiences across ${destinationName}.`
+      : heroContent.subtitle);
+
+  const heroDescription = destinationName
+    ? `Tell us how you want to experience ${destinationName}; we'll stitch together restaurants, experiences, and logistics in minutes.`
+    : heroContent.description;
+
+  const heroCtaLabel = heroImage?.ctaLabel?.trim()
+    || (destinationName
+      ? cleanedSuggestion
+        ? `Plan ${destinationName}: ${cleanedSuggestion}`
+        : `Plan your ${destinationName} escape`
+      : "Start planning");
 
   const featuredPromotions = [
     {
@@ -445,12 +519,14 @@ export default function DynamicDestination() {
                 {destinationName}
               </div>
 
-              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-                {heroContent.title}
+              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-7xl">
+                {heroHeadline}
               </h1>
-              <p className="text-xl font-medium text-white/85">{heroContent.subtitle}</p>
-              <p className="text-base text-white/80 md:text-lg">
-                {heroContent.description}
+              <p className="text-xl font-semibold text-white/85 sm:text-2xl lg:text-3xl">
+                {heroSubheadline}
+              </p>
+              <p className="text-lg text-white/80 md:text-xl">
+                {heroDescription}
               </p>
 
               <form
@@ -463,7 +539,7 @@ export default function DynamicDestination() {
                 <Input
                   value={customQuery}
                   onChange={(e) => setCustomQuery(e.target.value)}
-                placeholder={`What do you want to plan in ${readableDestination}?`}
+                placeholder={`What should we plan for ${readableDestination}?`}
                   disabled={isSearching}
                   className="h-14 flex-1 border-white/30 bg-white/15 text-lg text-white placeholder:text-white/70 shadow-lg backdrop-blur focus-visible:ring-white/80"
                 />
@@ -474,17 +550,17 @@ export default function DynamicDestination() {
                   className="h-14 px-8 text-lg shadow-lg"
                 >
                   <Search className="mr-2 h-5 w-5" />
-                  Start planning
+                  {heroCtaLabel}
                 </Button>
               </form>
 
               <div className="min-h-[32px]">
                 {suggestionsLoading ? (
                   <span className="text-sm text-white/70">Loading smart suggestions…</span>
-                ) : primaryQueries.length > 0 ? (
+                ) : heroSuggestionChips.length > 0 ? (
                   <div className="flex flex-wrap items-center gap-2 text-sm text-white/70">
                     <span className="text-xs uppercase tracking-wide text-white/50">Try:</span>
-                    {primaryQueries.slice(0, 6).map((query) => (
+                    {heroSuggestionChips.map((query) => (
                       <Button
                         key={query}
                         type="button"
@@ -510,7 +586,7 @@ export default function DynamicDestination() {
             <div className="space-y-6">
               {existingGuides.length > 0 && (
                 <div>
-                  <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+                  <h3 className="mb-3 flex items-center gap-2 text-xl font-semibold md:text-2xl">
                     <BookOpen className="h-4 w-4 text-primary" />
                     Hand-crafted guides
                   </h3>
@@ -537,7 +613,7 @@ export default function DynamicDestination() {
               )}
 
               <Card className="p-6">
-                <h3 className="text-lg font-semibold">Popular sparks</h3>
+                <h3 className="text-xl font-semibold md:text-2xl">Popular sparks</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Tap a theme to load localized answers instantly.
                 </p>
@@ -614,7 +690,7 @@ export default function DynamicDestination() {
                 {searchUnits.length === 0 && !isSearching && (
                   <Card className="p-12 text-center">
                     <Sparkles className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold mb-2">
+                    <h3 className="text-xl font-semibold md:text-2xl mb-2">
                       Start exploring {readableDestination}
                     </h3>
                     <p className="text-muted-foreground">

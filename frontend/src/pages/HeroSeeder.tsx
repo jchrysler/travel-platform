@@ -16,6 +16,9 @@ type HeroImageRecord = {
   height: number;
   imageWebp: string;
   imageJpeg?: string | null;
+  headline?: string | null;
+  subheadline?: string | null;
+  ctaLabel?: string | null;
   updatedAt: string;
 };
 
@@ -29,6 +32,13 @@ const DEFAULT_PROMPT_HINT =
 
 function normalizeHeroImage(payload: Record<string, unknown>): HeroImageRecord {
   const value = payload as Record<string, any>;
+  const toOptional = (input: unknown): string | null => {
+    if (typeof input === "string") {
+      const trimmed = input.trim();
+      return trimmed.length ? trimmed : null;
+    }
+    return null;
+  };
   return {
     destination: String(value.destination ?? value.destination_name ?? "").trim(),
     destinationSlug: String(value.destinationSlug ?? value.destination_slug ?? "").trim(),
@@ -36,8 +46,19 @@ function normalizeHeroImage(payload: Record<string, unknown>): HeroImageRecord {
     promptVersion: String(value.promptVersion ?? value.prompt_version ?? "").trim(),
     width: Number(value.width ?? 0),
     height: Number(value.height ?? 0),
-    imageWebp: typeof value.imageWebp === "string" ? value.imageWebp : String(value.image_webp ?? ""),
-    imageJpeg: typeof value.imageJpeg === "string" ? value.imageJpeg : (value.image_jpeg as string | null | undefined),
+    imageWebp: typeof value.imageWebp === "string"
+      ? value.imageWebp
+      : typeof value.image_webp === "string"
+        ? value.image_webp
+        : "",
+    imageJpeg: typeof value.imageJpeg === "string"
+      ? value.imageJpeg
+      : typeof value.image_jpeg === "string"
+        ? value.image_jpeg
+        : null,
+    headline: toOptional(value.headline),
+    subheadline: toOptional(value.subheadline),
+    ctaLabel: toOptional(value.ctaLabel ?? value.cta_label),
     updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : String(value.updated_at ?? ""),
   };
 }
@@ -46,6 +67,9 @@ export default function HeroSeeder() {
   const [destination, setDestination] = useState("");
   const [promptHint, setPromptHint] = useState(DEFAULT_PROMPT_HINT);
   const [promptOverride, setPromptOverride] = useState("");
+  const [headline, setHeadline] = useState("");
+  const [subheadline, setSubheadline] = useState("");
+  const [ctaLabel, setCtaLabel] = useState("");
   const [heroImages, setHeroImages] = useState<HeroImageRecord[]>([]);
   const [selectedImage, setSelectedImage] = useState<HeroImageRecord | null>(null);
   const [isLoadingList, setIsLoadingList] = useState(true);
@@ -60,6 +84,13 @@ export default function HeroSeeder() {
     if (!selectedImage) return null;
     return selectedImage.imageWebp || selectedImage.imageJpeg || null;
   }, [selectedImage]);
+
+  function applyRecordToForm(record: HeroImageRecord) {
+    setDestination(record.destination ?? "");
+    setHeadline(record.headline ?? "");
+    setSubheadline(record.subheadline ?? "");
+    setCtaLabel(record.ctaLabel ?? "");
+  }
 
   async function loadExistingHeroes() {
     setIsLoadingList(true);
@@ -76,7 +107,7 @@ export default function HeroSeeder() {
       setHeroImages(normalized);
       if (normalized.length > 0 && !selectedImage) {
         setSelectedImage(normalized[0]);
-        setDestination(normalized[0].destination);
+        applyRecordToForm(normalized[0]);
       }
     } catch (error) {
       console.error("Unable to load hero images", error);
@@ -86,12 +117,21 @@ export default function HeroSeeder() {
     }
   }
 
-  async function generateHeroImage(customDestination?: string) {
+  async function generateHeroImage(
+    customDestination?: string,
+    copyOverrides?: { headline?: string | null; subheadline?: string | null; ctaLabel?: string | null },
+  ) {
     const targetDestination = (customDestination ?? destination).trim();
     if (!targetDestination) {
       setErrorMessage("Destination is required to generate a hero image.");
       return;
     }
+
+    setDestination(targetDestination);
+
+    const nextHeadline = (copyOverrides?.headline ?? headline).trim();
+    const nextSubheadline = (copyOverrides?.subheadline ?? subheadline).trim();
+    const nextCtaLabel = (copyOverrides?.ctaLabel ?? ctaLabel).trim();
 
     setIsGenerating(true);
     setErrorMessage(null);
@@ -104,6 +144,9 @@ export default function HeroSeeder() {
       if (promptOverride.trim()) {
         payload.promptOverride = promptOverride.trim();
       }
+      payload.headline = nextHeadline;
+      payload.subheadline = nextSubheadline;
+      payload.ctaLabel = nextCtaLabel;
 
       const response = await fetch("/api/hero-images", {
         method: "POST",
@@ -117,8 +160,8 @@ export default function HeroSeeder() {
       }
 
       const record = normalizeHeroImage((await response.json()) as HeroImageRecord);
-      setDestination(record.destination);
       setSelectedImage(record);
+      applyRecordToForm(record);
       setHeroImages((prev) => {
         const others = prev.filter((item) => item.destinationSlug !== record.destinationSlug);
         return [record, ...others];
@@ -133,7 +176,7 @@ export default function HeroSeeder() {
 
   function handleSelectHero(record: HeroImageRecord) {
     setSelectedImage(record);
-    setDestination(record.destination);
+    applyRecordToForm(record);
   }
 
   function downloadHeroImage(record: HeroImageRecord, format: "webp" | "jpeg") {
@@ -201,6 +244,43 @@ export default function HeroSeeder() {
               />
             </div>
 
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Hero headline override</label>
+              <Input
+                value={headline}
+                onChange={(event) => setHeadline(event.target.value)}
+                maxLength={140}
+                placeholder="e.g. Nightfall over Dubai's skyline"
+              />
+              <p className="text-xs text-muted-foreground">
+                Sets the main hero title. Leave blank to auto-generate from the destination.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Hero subheadline override</label>
+              <Textarea
+                value={subheadline}
+                onChange={(event) => setSubheadline(event.target.value)}
+                rows={3}
+                maxLength={280}
+                placeholder="Tailor the supporting description for the hero."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">CTA label override</label>
+              <Input
+                value={ctaLabel}
+                onChange={(event) => setCtaLabel(event.target.value)}
+                maxLength={80}
+                placeholder="e.g. Plan desert nights + skyline views"
+              />
+              <p className="text-xs text-muted-foreground">
+                Controls the primary hero button text. Leave blank to auto-tailor based on suggestions.
+              </p>
+            </div>
+
             {errorMessage && (
               <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
                 {errorMessage}
@@ -228,6 +308,26 @@ export default function HeroSeeder() {
               <div className="space-y-2 text-sm">
                 <p className="font-medium">{selectedImage.destination} · {selectedImage.destinationSlug}</p>
                 <p className="text-muted-foreground">{selectedImage.width} × {selectedImage.height} · {selectedImage.promptVersion}</p>
+                {(selectedImage.headline || selectedImage.subheadline || selectedImage.ctaLabel) && (
+                  <div className="space-y-1 rounded-md border border-border/60 bg-muted/40 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hero copy</p>
+                    {selectedImage.headline && (
+                      <p>
+                        <span className="font-medium text-foreground">Headline:</span> {selectedImage.headline}
+                      </p>
+                    )}
+                    {selectedImage.subheadline && (
+                      <p className="text-muted-foreground">
+                        <span className="font-medium text-foreground">Subheadline:</span> {selectedImage.subheadline}
+                      </p>
+                    )}
+                    {selectedImage.ctaLabel && (
+                      <p>
+                        <span className="font-medium text-foreground">CTA:</span> {selectedImage.ctaLabel}
+                      </p>
+                    )}
+                  </div>
+                )}
                 <div className="bg-muted/60 rounded-md p-3 text-xs text-muted-foreground whitespace-pre-wrap">
                   {selectedImage.prompt}
                 </div>
@@ -318,12 +418,29 @@ export default function HeroSeeder() {
                       <p className="text-xs text-muted-foreground">
                         Updated {new Date(record.updatedAt).toLocaleString()} · {record.promptVersion}
                       </p>
+                      {(record.headline || record.ctaLabel) && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          {record.headline || record.ctaLabel}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" onClick={() => handleSelectHero(record)}>
                         View
                       </Button>
-                      <Button variant="secondary" size="sm" onClick={() => void generateHeroImage(record.destination)} disabled={isGenerating}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          handleSelectHero(record);
+                          void generateHeroImage(record.destination, {
+                            headline: record.headline ?? "",
+                            subheadline: record.subheadline ?? "",
+                            ctaLabel: record.ctaLabel ?? "",
+                          });
+                        }}
+                        disabled={isGenerating}
+                      >
                         <Sparkles className="h-4 w-4 mr-1" />
                         Regenerate
                       </Button>

@@ -272,6 +272,10 @@ class DestinationHeroImage(Base):
     image_webp_size = Column(Integer, nullable=False)
     image_jpeg_size = Column(Integer)
 
+    headline = Column(Text)
+    subheadline = Column(Text)
+    cta_label = Column(String(160))
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
