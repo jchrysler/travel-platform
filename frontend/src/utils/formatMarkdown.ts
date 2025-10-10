@@ -44,114 +44,22 @@ export function formatMarkdownToHtml(text: string): string {
     '<a href="mailto:$1" class="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300">$1</a>'
   );
 
-  // Handle bullet points with context-aware rendering
-  // Don't convert to <ul> if bullets are nested under numbered sections
+  // Strip bullet markers completely - just render as regular text
   const lines = html.split('\n');
-  let processedLines: string[] = [];
-
-  // Check if content contains numbered sections
-  const hasNumberedSections = lines.some(line => /^\d+\.\s+/.test(line.trim()));
-
-  // First pass: identify bullet runs AND check if they're under numbered sections
-  const bulletRuns: Array<{start: number, end: number, underNumbered: boolean}> = [];
-  let currentRunStart = -1;
-  let lastNumberedLineIndex = -1;
-
-  for (let i = 0; i < lines.length; i++) {
-    const trimmedLine = lines[i].trim();
-    const isBullet = /^[\*\-\•]\s+/.test(trimmedLine);
-    const isNumbered = /^\d+\.\s+/.test(trimmedLine);
-
-    if (isNumbered) {
-      lastNumberedLineIndex = i;
-    }
-
-    if (isBullet) {
-      if (currentRunStart === -1) {
-        currentRunStart = i;
-      }
-    } else if (trimmedLine !== '') {
-      if (currentRunStart !== -1) {
-        const runLength = i - currentRunStart;
-        // Check if this bullet run is under a numbered section
-        const underNumbered = hasNumberedSections && lastNumberedLineIndex !== -1 && currentRunStart > lastNumberedLineIndex;
-
-        // Only create <ul> for 3+ consecutive bullets that are NOT under numbered sections
-        if (runLength >= 3 && !underNumbered) {
-          bulletRuns.push({start: currentRunStart, end: i - 1, underNumbered: false});
-        }
-        currentRunStart = -1;
-      }
-    }
-  }
-
-  // Handle trailing run
-  if (currentRunStart !== -1) {
-    const runLength = lines.length - currentRunStart;
-    const underNumbered = hasNumberedSections && lastNumberedLineIndex !== -1 && currentRunStart > lastNumberedLineIndex;
-
-    if (runLength >= 3 && !underNumbered) {
-      bulletRuns.push({start: currentRunStart, end: lines.length - 1, underNumbered: false});
-    }
-  }
-
-  // Second pass: convert to HTML
-  let inList = false;
-  let listDepth = 0;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  const processedLines = lines.map(line => {
     const trimmedLine = line.trim();
     const bulletMatch = trimmedLine.match(/^[\*\-\•]\s+(.*)$/);
 
-    // Check if this line is part of a run that should be converted to <ul>
-    const inBulletRun = bulletRuns.some(run => i >= run.start && i <= run.end);
-
-    if (bulletMatch && inBulletRun) {
+    if (bulletMatch) {
+      // Remove bullet marker and return just the content
       const content = bulletMatch[1];
       const indent = line.match(/^\s*/)?.[0].length || 0;
-      const currentDepth = Math.floor(indent / 2);
-
-      if (!inList || currentDepth > listDepth) {
-        processedLines.push('<ul class="list-disc space-y-2 my-1.5 ml-6">');
-        inList = true;
-        listDepth = currentDepth;
-      } else if (currentDepth < listDepth) {
-        for (let j = listDepth; j > currentDepth; j--) {
-          processedLines.push('</ul>');
-        }
-        listDepth = currentDepth;
-      }
-
-      processedLines.push(`<li class="leading-relaxed">${content}</li>`);
-    } else {
-      // Close any open lists
-      if (inList && trimmedLine !== '') {
-        for (let j = listDepth; j >= 0; j--) {
-          processedLines.push('</ul>');
-        }
-        inList = false;
-        listDepth = 0;
-      }
-
-      // For bullets not in a run (or under numbered sections), render as plain text with bullet
-      if (bulletMatch) {
-        const content = bulletMatch[1];
-        const indent = line.match(/^\s*/)?.[0].length || 0;
-        const indentClass = indent > 0 ? `ml-${Math.min(indent, 12)}` : '';
-        processedLines.push(`<div class="flex gap-2 ${indentClass}"><span class="text-muted-foreground shrink-0">•</span><span>${content}</span></div>`);
-      } else {
-        processedLines.push(line);
-      }
+      const indentClass = indent > 0 ? `ml-${Math.min(Math.floor(indent / 2) * 2, 8)}` : '';
+      return `<div class="${indentClass}">${content}</div>`;
     }
-  }
 
-  // Close any remaining open lists
-  if (inList) {
-    for (let j = listDepth; j >= 0; j--) {
-      processedLines.push('</ul>');
-    }
-  }
+    return line;
+  });
 
   html = processedLines.join('\n');
 
