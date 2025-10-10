@@ -420,15 +420,14 @@ export default function DynamicDestination() {
   }, [searchUnits.length]);
 
   useEffect(() => {
-    if (!hasUserSearched || searchUnits.length === 0) {
-      return;
-    }
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+    // Only scroll when the first search result appears
+    if (searchUnits.length === 1 && hasUserSearched) {
+      // Wait for DOM to update before scrolling
+      setTimeout(() => {
         scrollToResults();
-      });
-    });
-  }, [hasUserSearched, searchUnits.length]);
+      }, 300);
+    }
+  }, [searchUnits.length, hasUserSearched, scrollToResults]);
 
   // Detect when user scrolls past hero section
   useEffect(() => {
