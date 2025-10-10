@@ -1228,11 +1228,13 @@ export default function DynamicDestination() {
             </form>
           </div>
         </div>
+      )}
 
-          {/* Desktop: Sticky Top Search */}
-          <div
-            className={cn(
-              "sticky top-0 z-40 hidden border-b border-border/60 bg-background/90 backdrop-blur-sm transition-all duration-300 md:block",
+      {/* Desktop: Sticky Top Search */}
+      {shouldShowFloatingSearch && (
+        <div
+          className={cn(
+            "sticky top-0 z-40 hidden border-b border-border/60 bg-background/90 backdrop-blur-sm transition-all duration-300 md:block",
               isScrolledPastHero ? "shadow-sm" : ""
             )}
           >
@@ -1284,7 +1286,7 @@ export default function DynamicDestination() {
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
