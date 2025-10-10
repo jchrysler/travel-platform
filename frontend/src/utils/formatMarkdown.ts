@@ -164,8 +164,8 @@ export function formatMarkdownToHtml(text: string): string {
       if (trimmed.startsWith('<') || trimmed === '') {
         return trimmed;
       }
-      // Add paragraph with proper spacing
-      return `<p class="mb-0 leading-relaxed">${trimmed.replace(/\n/g, '<br />')}</p>`;
+      // Add paragraph with proper spacing between sections
+      return `<p class="mb-4 leading-relaxed">${trimmed.replace(/\n/g, '<br />')}</p>`;
     })
     .filter(p => p !== '') // Remove empty paragraphs
     .join('\n');
