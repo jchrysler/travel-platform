@@ -280,3 +280,27 @@ class DestinationHeroImage(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     extra_metadata = Column(JSON)
+
+
+class DestinationDraft(Base):
+    """Stores shareable draft research sessions for destinations."""
+
+    __tablename__ = "destination_drafts"
+
+    id = Column(Integer, primary_key=True)
+    draft_id = Column(String(100), unique=True, nullable=False, index=True)
+    destination_slug = Column(String(128), nullable=False, index=True)
+    destination_name = Column(String(128), nullable=False)
+
+    search_units = Column(JSON, nullable=False)  # Array of search unit objects
+    refined_titles = Column(JSON)  # Map of unit IDs to refined titles
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    accessed_at = Column(DateTime, default=datetime.utcnow, nullable=False)  # Track last access
+
+    extra_metadata = Column(JSON)
+
+
+# Index for cleanup of old drafts
+Index("ix_drafts_accessed", DestinationDraft.accessed_at)

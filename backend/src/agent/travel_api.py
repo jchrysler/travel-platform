@@ -35,6 +35,9 @@ from agent.database.operations import (
     upsert_destination_hero_image,
     list_destination_hero_images,
     get_destination_hero_image,
+    upsert_destination_draft,
+    get_destination_draft,
+    delete_destination_draft,
 )
 
 load_dotenv()
@@ -123,6 +126,31 @@ class HeroImageResponse(BaseModel):
 class HeroImageListResponse(BaseModel):
     items: List[HeroImageResponse]
     total: int
+
+
+class DraftSavePayload(BaseModel):
+    draft_id: str = Field(..., alias="draftId", min_length=1)
+    destination_name: str = Field(..., alias="destinationName", min_length=1)
+    destination_slug: str = Field(..., alias="destinationSlug", min_length=1)
+    search_units: List[Dict[str, Any]] = Field(..., alias="searchUnits")
+    refined_titles: Optional[Dict[str, str]] = Field(None, alias="refinedTitles")
+    metadata: Optional[Dict[str, Any]] = None
+
+    class Config:
+        allow_population_by_field_name = True
+
+
+class DraftResponse(BaseModel):
+    draft_id: str = Field(..., serialization_alias="draftId")
+    destination_name: str = Field(..., serialization_alias="destinationName")
+    destination_slug: str = Field(..., serialization_alias="destinationSlug")
+    search_units: List[Dict[str, Any]] = Field(..., serialization_alias="searchUnits")
+    refined_titles: Dict[str, str] = Field(..., serialization_alias="refinedTitles")
+    created_at: datetime = Field(..., serialization_alias="createdAt")
+    updated_at: datetime = Field(..., serialization_alias="updatedAt")
+
+    class Config:
+        populate_by_name = True
 
 
 def _require_gemini_api_key() -> str:
@@ -617,5 +645,62 @@ def create_travel_routes(app):
             )
             for guide in records
         ]
+
+    @app.post("/api/travel/drafts", response_model=DraftResponse)
+    async def save_draft(
+        payload: DraftSavePayload,
+        db: Session = Depends(get_db),
+    ) -> DraftResponse:
+        """Save or update a shareable draft."""
+        record = upsert_destination_draft(
+            db,
+            draft_id=payload.draft_id,
+            destination_name=payload.destination_name,
+            destination_slug=payload.destination_slug,
+            search_units=payload.search_units,
+            refined_titles=payload.refined_titles or {},
+            metadata=payload.metadata,
+        )
+
+        return DraftResponse(
+            draft_id=record.draft_id,
+            destination_name=record.destination_name,
+            destination_slug=record.destination_slug,
+            search_units=record.search_units,
+            refined_titles=record.refined_titles or {},
+            created_at=record.created_at,
+            updated_at=record.updated_at,
+        )
+
+    @app.get("/api/travel/drafts/{draft_id}", response_model=DraftResponse)
+    async def get_draft(
+        draft_id: str,
+        db: Session = Depends(get_db),
+    ) -> DraftResponse:
+        """Retrieve a shareable draft."""
+        record = get_destination_draft(db, draft_id=draft_id)
+        if not record:
+            raise HTTPException(status_code=404, detail="Draft not found")
+
+        return DraftResponse(
+            draft_id=record.draft_id,
+            destination_name=record.destination_name,
+            destination_slug=record.destination_slug,
+            search_units=record.search_units,
+            refined_titles=record.refined_titles or {},
+            created_at=record.created_at,
+            updated_at=record.updated_at,
+        )
+
+    @app.delete("/api/travel/drafts/{draft_id}")
+    async def delete_draft(
+        draft_id: str,
+        db: Session = Depends(get_db),
+    ) -> Dict[str, Any]:
+        """Delete a draft (e.g., after saving as guide)."""
+        deleted = delete_destination_draft(db, draft_id=draft_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Draft not found")
+        return {"status": "deleted", "draft_id": draft_id}
 
     return app

@@ -20,6 +20,7 @@ from .models import (
     ResearchGuideSection,
     DestinationSuggestion,
     DestinationHeroImage,
+    DestinationDraft,
 )
 
 
@@ -551,3 +552,88 @@ def list_recent_guides(
     if state:
         query = query.filter(ResearchGuide.state == state)
     return query.limit(limit).all()
+
+
+# ---------------------------------------------------------------------------
+# Draft persistence helpers
+# ---------------------------------------------------------------------------
+
+
+def upsert_destination_draft(
+    db: Session,
+    *,
+    draft_id: str,
+    destination_name: str,
+    destination_slug: str,
+    search_units: List[Dict[str, Any]],
+    refined_titles: Optional[Dict[str, str]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> DestinationDraft:
+    """Create or update a shareable draft."""
+    record = (
+        db.query(DestinationDraft)
+        .filter(DestinationDraft.draft_id == draft_id)
+        .first()
+    )
+
+    if record:
+        record.destination_name = destination_name
+        record.destination_slug = destination_slug.lower()
+        record.search_units = search_units
+        record.refined_titles = refined_titles or {}
+        record.accessed_at = datetime.utcnow()
+        record.extra_metadata = metadata or {}
+    else:
+        record = DestinationDraft(
+            draft_id=draft_id,
+            destination_name=destination_name,
+            destination_slug=destination_slug.lower(),
+            search_units=search_units,
+            refined_titles=refined_titles or {},
+            extra_metadata=metadata or {},
+        )
+        db.add(record)
+
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+def get_destination_draft(
+    db: Session,
+    *,
+    draft_id: str,
+) -> Optional[DestinationDraft]:
+    """Retrieve a draft and update its access timestamp."""
+    record = (
+        db.query(DestinationDraft)
+        .filter(DestinationDraft.draft_id == draft_id)
+        .first()
+    )
+
+    if record:
+        record.accessed_at = datetime.utcnow()
+        db.commit()
+        db.refresh(record)
+
+    return record
+
+
+def delete_destination_draft(
+    db: Session,
+    *,
+    draft_id: str,
+) -> bool:
+    """Delete a draft (e.g., after saving as a guide)."""
+    record = (
+        db.query(DestinationDraft)
+        .filter(DestinationDraft.draft_id == draft_id)
+        .first()
+    )
+
+    if record:
+        db.delete(record)
+        db.commit()
+        return True
+
+    return False

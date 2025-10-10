@@ -299,47 +299,107 @@ export default function DynamicDestination() {
       const guides = getDestinationGuides(destinationSlug);
       setExistingGuides(guides);
 
-      // If we have a draft ID in the URL, load it from localStorage
+      // If we have a draft ID in the URL, load it from localStorage or backend
       if (mode === 'draft' && id) {
         setDraftId(id);
-        try {
-          const storedDraft = localStorage.getItem(`draft_${id}`);
-          if (storedDraft) {
-            const parsed = JSON.parse(storedDraft);
-            if (Array.isArray(parsed)) {
-              // Restore timestamps as Date objects
-              const restoredUnits = parsed.map(unit => ({
-                ...unit,
-                timestamp: new Date(unit.timestamp)
-              }));
-              setSearchUnits(restoredUnits);
-              if (restoredUnits.length > 0) {
-                const restoredTitles = new Map<string, string>();
-                restoredUnits.forEach((unit) => {
-                  restoredTitles.set(unit.id, refineQueryToTitle(unit.query, destinationName));
-                });
-                setRefinedTitles(restoredTitles);
-                setHasUserSearched(true);
+
+        const loadDraft = async () => {
+          try {
+            // Try localStorage first (fast)
+            const storedDraft = localStorage.getItem(`draft_${id}`);
+            if (storedDraft) {
+              const parsed = JSON.parse(storedDraft);
+              if (Array.isArray(parsed)) {
+                // Restore timestamps as Date objects
+                const restoredUnits = parsed.map(unit => ({
+                  ...unit,
+                  timestamp: new Date(unit.timestamp)
+                }));
+                setSearchUnits(restoredUnits);
+                if (restoredUnits.length > 0) {
+                  const restoredTitles = new Map<string, string>();
+                  restoredUnits.forEach((unit) => {
+                    restoredTitles.set(unit.id, refineQueryToTitle(unit.query, destinationName));
+                  });
+                  setRefinedTitles(restoredTitles);
+                  setHasUserSearched(true);
+                }
+                return; // Successfully loaded from localStorage
               }
             }
+
+            // If not in localStorage, try backend API (shareable permalink)
+            const response = await fetch(`/api/travel/drafts/${id}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (Array.isArray(data.searchUnits)) {
+                // Restore timestamps as Date objects
+                const restoredUnits = data.searchUnits.map((unit: any) => ({
+                  ...unit,
+                  timestamp: new Date(unit.timestamp)
+                }));
+                setSearchUnits(restoredUnits);
+
+                // Restore refined titles from backend
+                if (data.refinedTitles && typeof data.refinedTitles === 'object') {
+                  const restoredTitles = new Map<string, string>(Object.entries(data.refinedTitles));
+                  setRefinedTitles(restoredTitles);
+                } else if (restoredUnits.length > 0) {
+                  const restoredTitles = new Map<string, string>();
+                  restoredUnits.forEach((unit: any) => {
+                    restoredTitles.set(unit.id, refineQueryToTitle(unit.query, destinationName));
+                  });
+                  setRefinedTitles(restoredTitles);
+                }
+
+                setHasUserSearched(true);
+
+                // Save to localStorage for faster future access
+                localStorage.setItem(`draft_${id}`, JSON.stringify(restoredUnits));
+              }
+            }
+          } catch (error) {
+            console.warn('Failed to load draft', error);
           }
-        } catch (error) {
-          console.warn('Failed to load draft from localStorage', error);
-        }
+        };
+
+        void loadDraft();
       }
     }
   }, [destination, destinationName, destinationSlug, mode, id]);
 
-  // Persist searchUnits to localStorage whenever they change (if we have a draftId)
+  // Persist searchUnits to both localStorage and backend whenever they change (if we have a draftId)
   useEffect(() => {
     if (draftId && searchUnits.length > 0) {
       try {
+        // Save to localStorage for fast local access
         localStorage.setItem(`draft_${draftId}`, JSON.stringify(searchUnits));
+
+        // Also save to backend for cross-device/browser persistence
+        const saveDraftToBackend = async () => {
+          try {
+            const titlesObject = Object.fromEntries(refinedTitles.entries());
+            await fetch('/api/travel/drafts', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                draftId: draftId,
+                destinationName: destinationName,
+                destinationSlug: destinationSlug,
+                searchUnits: searchUnits,
+                refinedTitles: titlesObject,
+              }),
+            });
+          } catch (error) {
+            console.warn('Failed to save draft to backend', error);
+          }
+        };
+        void saveDraftToBackend();
       } catch (error) {
         console.warn('Failed to save draft to localStorage', error);
       }
     }
-  }, [searchUnits, draftId]);
+  }, [searchUnits, draftId, refinedTitles, destinationName, destinationSlug]);
 
   const scrollToResults = useCallback(() => {
     if (!resultsRef.current) return;
@@ -599,12 +659,19 @@ export default function DynamicDestination() {
     // Fire-and-forget backend persistence (best effort)
     void submitGuideToBackend(finalTitle, finalDescription, backendSections);
 
-    // Clear draft from localStorage
+    // Clear draft from both localStorage and backend
     if (draftId) {
       try {
         localStorage.removeItem(`draft_${draftId}`);
       } catch (error) {
         console.warn('Failed to clear draft from localStorage', error);
+      }
+
+      // Delete draft from backend
+      try {
+        void fetch(`/api/travel/drafts/${draftId}`, { method: 'DELETE' });
+      } catch (error) {
+        console.warn('Failed to delete draft from backend', error);
       }
     }
 
