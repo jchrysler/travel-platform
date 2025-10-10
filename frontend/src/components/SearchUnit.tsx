@@ -91,7 +91,7 @@ export function SearchUnit({
       }
 
       acc.push(
-        <div key={elementKey} className="mb-3 last:mb-0">
+        <div key={elementKey} className="mb-1 last:mb-0">
           <SaveableContent
             content={paragraph}
             queryContext={unit.query}

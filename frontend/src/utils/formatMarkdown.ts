@@ -20,7 +20,7 @@ export function formatMarkdownToHtml(text: string): string {
 
   // Convert numbered lists with periods (e.g., "1. Item" or "2. Item")
   html = html.replace(/^(\d+)\.\s+(.*)$/gm, (_match, num, content) => {
-    return `<div class="flex gap-3 mb-3">
+    return `<div class="flex gap-3 mb-1.5">
       <span class="font-semibold text-base shrink-0">${num}.</span>
       <div class="flex-1">${content}</div>
     </div>`;
@@ -64,7 +64,7 @@ export function formatMarkdownToHtml(text: string): string {
       const currentDepth = Math.floor(indent / 2);
 
       if (!inList || currentDepth > listDepth) {
-        processedLines.push('<ul class="list-disc space-y-2 my-3 ml-6">');
+        processedLines.push('<ul class="list-disc space-y-2 my-1.5 ml-6">');
         inList = true;
         listDepth = currentDepth;
       } else if (currentDepth < listDepth) {
@@ -108,7 +108,7 @@ export function formatMarkdownToHtml(text: string): string {
         return trimmed;
       }
       // Add paragraph with proper spacing
-      return `<p class="mb-4 leading-relaxed">${trimmed.replace(/\n/g, '<br />')}</p>`;
+      return `<p class="mb-0 leading-relaxed">${trimmed.replace(/\n/g, '<br />')}</p>`;
     })
     .filter(p => p !== '') // Remove empty paragraphs
     .join('\n');
