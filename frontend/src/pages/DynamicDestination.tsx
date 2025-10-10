@@ -290,7 +290,7 @@ export default function DynamicDestination() {
     label: refinedTitles.get(unit.id) || refineQueryToTitle(unit.query, destinationName),
   }));
 
-  const shouldShowFloatingSearch = hasUserSearched || searchUnits.length > 0;
+  const shouldShowFloatingSearch = hasUserSearched || searchUnits.length > 0 || isSearching;
 
   useEffect(() => {
     if (destination) {
@@ -1193,14 +1193,14 @@ export default function DynamicDestination() {
       {/* Floating/Sticky Search Box */}
       {shouldShowFloatingSearch && (
         <>
-          {/* Mobile: Floating Bottom Search */}
+          {/* Floating Bottom Search */}
           <div
-            className="pointer-events-none fixed inset-x-0 z-40 pb-5 md:hidden"
-            style={{ bottom: 'max(env(safe-area-inset-bottom), 1rem)' }}
+            className="pointer-events-none fixed inset-x-0 z-40 pb-4 md:pb-6"
+            style={{ bottom: "max(env(safe-area-inset-bottom), 1rem)" }}
           >
             <div
               className={cn(
-                "pointer-events-auto mx-4 overflow-hidden rounded-3xl border border-border/60 bg-background/95 px-4 py-3 shadow-2xl backdrop-blur-md transition-all duration-300",
+                "pointer-events-auto mx-4 overflow-hidden rounded-3xl border border-border/60 bg-background/95 px-4 py-3 shadow-2xl backdrop-blur-md transition-all duration-300 md:mx-auto md:max-w-3xl md:px-6 lg:max-w-4xl",
                 isScrolledPastHero ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
               )}
             >
