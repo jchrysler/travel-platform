@@ -27,6 +27,8 @@ interface SearchUnitData {
   searchResults?: PlaceResult[];
   timestamp: Date;
   isStreaming?: boolean;
+  parentId?: string;
+  children?: SearchUnitData[];
 }
 
 interface PlaceResult {
@@ -455,7 +457,7 @@ export default function DynamicDestination() {
     await performSearch(query);
   };
 
-  const performSearch = async (query: string) => {
+  const performSearch = async (query: string, parentId?: string) => {
     if (!destination) return;
 
     // If this is the first search and we don't have a draft ID, create one and navigate
@@ -480,9 +482,38 @@ export default function DynamicDestination() {
       query,
       response: "",
       timestamp: new Date(),
-      isStreaming: true
+      isStreaming: true,
+      parentId: parentId,
+      children: []
     };
-    setSearchUnits(prev => [newUnit, ...prev]);
+
+    // Helper function to recursively add child to parent
+    const addChildToParent = (units: SearchUnitData[], targetParentId: string, child: SearchUnitData): SearchUnitData[] => {
+      return units.map(unit => {
+        if (unit.id === targetParentId) {
+          return {
+            ...unit,
+            children: [child, ...(unit.children || [])]
+          };
+        }
+        if (unit.children && unit.children.length > 0) {
+          return {
+            ...unit,
+            children: addChildToParent(unit.children, targetParentId, child)
+          };
+        }
+        return unit;
+      });
+    };
+
+    // Add unit to appropriate location
+    if (parentId) {
+      // Add as nested child under parent
+      setSearchUnits(prev => addChildToParent(prev, parentId, newUnit));
+    } else {
+      // Add to top level
+      setSearchUnits(prev => [newUnit, ...prev]);
+    }
 
     // Scroll to results area to show ads prominently
     requestAnimationFrame(() => {
@@ -521,12 +552,20 @@ export default function DynamicDestination() {
           if (line.startsWith("data: ")) {
             const data = line.slice(6);
             if (data === "[DONE]") {
-              // Mark streaming as complete
-              setSearchUnits(prev => prev.map(unit =>
-                unit.id === unitId
-                  ? { ...unit, response: fullResponse, isStreaming: false }
-                  : unit
-              ));
+              // Helper to update unit recursively
+              const updateUnitRecursively = (units: SearchUnitData[]): SearchUnitData[] => {
+                return units.map(unit => {
+                  if (unit.id === unitId) {
+                    return { ...unit, response: fullResponse, isStreaming: false };
+                  }
+                  if (unit.children && unit.children.length > 0) {
+                    return { ...unit, children: updateUnitRecursively(unit.children) };
+                  }
+                  return unit;
+                });
+              };
+
+              setSearchUnits(prev => updateUnitRecursively(prev));
               setCurrentStreamingId(null);
               setIsSearching(false);
             } else {
@@ -534,12 +573,21 @@ export default function DynamicDestination() {
                 const parsed = JSON.parse(data);
                 if (parsed.content) {
                   fullResponse += parsed.content;
-                  // Update the streaming unit's response
-                  setSearchUnits(prev => prev.map(unit =>
-                    unit.id === unitId
-                      ? { ...unit, response: fullResponse }
-                      : unit
-                  ));
+
+                  // Helper to update unit recursively
+                  const updateUnitRecursively = (units: SearchUnitData[]): SearchUnitData[] => {
+                    return units.map(unit => {
+                      if (unit.id === unitId) {
+                        return { ...unit, response: fullResponse };
+                      }
+                      if (unit.children && unit.children.length > 0) {
+                        return { ...unit, children: updateUnitRecursively(unit.children) };
+                      }
+                      return unit;
+                    });
+                  };
+
+                  setSearchUnits(prev => updateUnitRecursively(prev));
                 }
               } catch (e) {
                 console.error("Parse error:", e);
@@ -578,18 +626,18 @@ export default function DynamicDestination() {
     setSearchUnits(prev => prev.filter(unit => unit.id !== id));
   };
 
-  const handleElaborate = async (content: string, _originalQuery: string) => {
+  const handleElaborate = async (content: string, _originalQuery: string, parentUnitId?: string) => {
     // Extract a snippet from the content for the query
     const snippet = content.slice(0, 100).trim();
     const elaborateQuery = `Tell me more about: ${snippet}${snippet.length < content.length ? '...' : ''}`;
-    await performSearch(elaborateQuery);
+    await performSearch(elaborateQuery, parentUnitId);
   };
 
-  const handleMoreLike = async (content: string, _originalQuery: string) => {
+  const handleMoreLike = async (content: string, _originalQuery: string, parentUnitId?: string) => {
     // Extract key terms from the content for similarity search
     const snippet = content.slice(0, 80).trim();
     const moreLikeQuery = `Find similar recommendations to: ${snippet}${snippet.length < content.length ? '...' : ''}`;
-    await performSearch(moreLikeQuery);
+    await performSearch(moreLikeQuery, parentUnitId);
   };
 
   const submitGuideToBackend = async (

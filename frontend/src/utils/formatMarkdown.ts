@@ -44,17 +44,27 @@ export function formatMarkdownToHtml(text: string): string {
     '<a href="mailto:$1" class="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300">$1</a>'
   );
 
-  // Handle bullet points with proper indentation - only convert to <ul> if 3+ consecutive bullets
+  // Handle bullet points with context-aware rendering
+  // Don't convert to <ul> if bullets are nested under numbered sections
   const lines = html.split('\n');
   let processedLines: string[] = [];
 
-  // First pass: identify bullet runs
-  const bulletRuns: Array<{start: number, end: number}> = [];
+  // Check if content contains numbered sections
+  const hasNumberedSections = lines.some(line => /^\d+\.\s+/.test(line.trim()));
+
+  // First pass: identify bullet runs AND check if they're under numbered sections
+  const bulletRuns: Array<{start: number, end: number, underNumbered: boolean}> = [];
   let currentRunStart = -1;
+  let lastNumberedLineIndex = -1;
 
   for (let i = 0; i < lines.length; i++) {
     const trimmedLine = lines[i].trim();
     const isBullet = /^[\*\-\•]\s+/.test(trimmedLine);
+    const isNumbered = /^\d+\.\s+/.test(trimmedLine);
+
+    if (isNumbered) {
+      lastNumberedLineIndex = i;
+    }
 
     if (isBullet) {
       if (currentRunStart === -1) {
@@ -63,8 +73,12 @@ export function formatMarkdownToHtml(text: string): string {
     } else if (trimmedLine !== '') {
       if (currentRunStart !== -1) {
         const runLength = i - currentRunStart;
-        if (runLength >= 3) {
-          bulletRuns.push({start: currentRunStart, end: i - 1});
+        // Check if this bullet run is under a numbered section
+        const underNumbered = hasNumberedSections && lastNumberedLineIndex !== -1 && currentRunStart > lastNumberedLineIndex;
+
+        // Only create <ul> for 3+ consecutive bullets that are NOT under numbered sections
+        if (runLength >= 3 && !underNumbered) {
+          bulletRuns.push({start: currentRunStart, end: i - 1, underNumbered: false});
         }
         currentRunStart = -1;
       }
@@ -74,8 +88,10 @@ export function formatMarkdownToHtml(text: string): string {
   // Handle trailing run
   if (currentRunStart !== -1) {
     const runLength = lines.length - currentRunStart;
-    if (runLength >= 3) {
-      bulletRuns.push({start: currentRunStart, end: lines.length - 1});
+    const underNumbered = hasNumberedSections && lastNumberedLineIndex !== -1 && currentRunStart > lastNumberedLineIndex;
+
+    if (runLength >= 3 && !underNumbered) {
+      bulletRuns.push({start: currentRunStart, end: lines.length - 1, underNumbered: false});
     }
   }
 
@@ -118,9 +134,12 @@ export function formatMarkdownToHtml(text: string): string {
         listDepth = 0;
       }
 
-      // For bullets not in a run, just render as plain text
+      // For bullets not in a run (or under numbered sections), render as plain text with bullet
       if (bulletMatch) {
-        processedLines.push(line.replace(/^(\s*)([\*\-\•]\s+)/, '$1'));
+        const content = bulletMatch[1];
+        const indent = line.match(/^\s*/)?.[0].length || 0;
+        const indentClass = indent > 0 ? `ml-${Math.min(indent, 12)}` : '';
+        processedLines.push(`<div class="flex gap-2 ${indentClass}"><span class="text-muted-foreground shrink-0">•</span><span>${content}</span></div>`);
       } else {
         processedLines.push(line);
       }

@@ -24,6 +24,8 @@ interface SearchUnitData {
   timestamp: Date;
   isStreaming?: boolean;
   refinedTitle?: string;
+  parentId?: string;
+  children?: SearchUnitData[];
 }
 
 interface SearchUnitProps {
@@ -35,8 +37,9 @@ interface SearchUnitProps {
   savedItemIds?: Set<string>;
   onDelete?: (id: string) => void;
   showDelete?: boolean;
-  onElaborate?: (content: string, query: string) => void;
-  onMoreLike?: (content: string, query: string) => void;
+  onElaborate?: (content: string, query: string, parentUnitId?: string) => void;
+  onMoreLike?: (content: string, query: string, parentUnitId?: string) => void;
+  depth?: number;
 }
 
 export function SearchUnit({
@@ -49,7 +52,8 @@ export function SearchUnit({
   onDelete,
   showDelete = false,
   onElaborate,
-  onMoreLike
+  onMoreLike,
+  depth = 0
 }: SearchUnitProps) {
   const unitRef = useRef<HTMLDivElement>(null);
 
@@ -67,14 +71,16 @@ export function SearchUnit({
 
   // Parse response into saveable sections
   const renderSaveableContent = (content: string) => {
-    // Split content into paragraphs for individual saving
-    const paragraphs = content.split('\n\n').filter(p => p.trim().length > 0);
+    // Split content by numbered sections first (1., 2., 3., etc.)
+    // This keeps each numbered section with all its nested content as ONE unit
+    const numberedSectionRegex = /(?=^\d+\.\s+)/gm;
+    const sections = content.split(numberedSectionRegex).filter(s => s.trim().length > 0);
 
-    return paragraphs.reduce<ReactElement[]>((acc, paragraph, index) => {
-      const paragraphId = `${unit.id}-p-${index}`;
-      const isSaved = savedItemIds.has(paragraphId);
+    return sections.reduce<ReactElement[]>((acc, section, index) => {
+      const sectionId = `${unit.id}-section-${index}`;
+      const isSaved = savedItemIds.has(sectionId);
 
-      const normalized = paragraph.trim();
+      const normalized = section.trim();
       if (!normalized) {
         return acc;
       }
@@ -97,15 +103,15 @@ export function SearchUnit({
       acc.push(
         <div key={elementKey} className="mb-1 last:mb-0">
           <SaveableContent
-            content={paragraph}
+            content={section}
             queryContext={unit.query}
             onSave={onSaveItem}
             isSaved={isSaved}
-            onElaborate={onElaborate ? () => onElaborate(paragraph, unit.query) : undefined}
-            onMoreLike={onMoreLike ? () => onMoreLike(paragraph, unit.query) : undefined}
+            onElaborate={onElaborate ? () => onElaborate(section, unit.query, unit.id) : undefined}
+            onMoreLike={onMoreLike ? () => onMoreLike(section, unit.query, unit.id) : undefined}
           >
             <div
-              dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(paragraph) }}
+              dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(section) }}
               className="travel-content [&_a]:text-primary [&_a]:underline [&_strong]:text-foreground [&_em]:text-muted-foreground"
             />
           </SaveableContent>
@@ -207,6 +213,31 @@ export function SearchUnit({
           )}
         </div>
       </Card>
+
+      {/* Nested Children */}
+      {unit.children && unit.children.length > 0 && (
+        <div className="mt-3 ml-6 space-y-3 border-l-2 border-primary/30 pl-4">
+          <div className="text-xs text-muted-foreground italic mb-2">
+            In response to: "{unit.query}"
+          </div>
+          {unit.children.map((child) => (
+            <SearchUnit
+              key={child.id}
+              unit={child}
+              cityName={cityName}
+              isFirst={false}
+              isLatest={false}
+              onSaveItem={onSaveItem}
+              savedItemIds={savedItemIds}
+              onDelete={onDelete}
+              showDelete={showDelete}
+              onElaborate={onElaborate}
+              onMoreLike={onMoreLike}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
