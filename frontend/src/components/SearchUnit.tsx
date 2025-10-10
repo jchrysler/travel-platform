@@ -42,6 +42,116 @@ interface SearchUnitProps {
   depth?: number;
 }
 
+interface SuggestionLine {
+  text: string;
+  indent: number;
+}
+
+interface SuggestionBlock {
+  lines: SuggestionLine[];
+}
+
+const MAX_LABEL_LENGTH = 120;
+
+const indentationClassForLevel = (indent: number): string => {
+  if (indent >= 3) return "pl-8";
+  if (indent === 2) return "pl-6";
+  if (indent === 1) return "pl-4";
+  return "";
+};
+
+const buildSuggestionBlocks = (lines: string[]): SuggestionBlock[] => {
+  const blocks: SuggestionBlock[] = [];
+  let current: SuggestionLine[] = [];
+  let expectingDetail = false;
+
+  const flushCurrent = () => {
+    if (current.length > 0) {
+      blocks.push({ lines: current });
+      current = [];
+    }
+    expectingDetail = false;
+  };
+
+  lines.forEach(rawLine => {
+    const sanitized = rawLine.replace(/\r/g, "");
+    if (sanitized.trim().length === 0) {
+      flushCurrent();
+      return;
+    }
+
+    const leadingWhitespace = sanitized.match(/^\s*/)?.[0].length ?? 0;
+    const indentLevel = leadingWhitespace > 0 ? Math.floor(leadingWhitespace / 2) : 0;
+
+    let trimmed = sanitized.trim();
+    const bulletMatch = trimmed.match(/^[-*•]\s+(.*)$/);
+    if (bulletMatch) {
+      trimmed = bulletMatch[1].trim();
+    }
+
+    const colonIndex = trimmed.indexOf(":");
+    const hasInlineDetail = colonIndex > -1 && colonIndex < trimmed.length - 1;
+    const endsWithColon = colonIndex > -1 && colonIndex === trimmed.length - 1;
+    const looksLikeLabel = colonIndex > -1 && colonIndex <= MAX_LABEL_LENGTH;
+
+    const isTopLevelBullet = Boolean(bulletMatch) && indentLevel === 0;
+    const shouldStartNewBlock =
+      current.length === 0 ||
+      isTopLevelBullet ||
+      (!expectingDetail &&
+        indentLevel === 0 &&
+        (
+          (hasInlineDetail && looksLikeLabel) ||
+          (endsWithColon && !hasInlineDetail)
+        )
+      );
+
+    if (shouldStartNewBlock) {
+      if (current.length > 0) {
+        flushCurrent();
+      }
+      current = [{
+        text: trimmed,
+        indent: 0
+      }];
+      expectingDetail = endsWithColon && !hasInlineDetail;
+      return;
+    }
+
+    // Append to current block
+    const effectiveIndent = indentLevel > 0 || expectingDetail ? Math.max(indentLevel, 1) : indentLevel;
+    current.push({
+      text: trimmed,
+      indent: effectiveIndent
+    });
+
+    expectingDetail = endsWithColon && !hasInlineDetail;
+  });
+
+  flushCurrent();
+
+  if (blocks.length === 0) {
+    const fallbackSegments = lines.join("\n")
+      .split(/\n\s*\n/)
+      .map(segment => segment.trim())
+      .filter(Boolean);
+
+    if (fallbackSegments.length > 0) {
+      return fallbackSegments.map(segment => ({
+        lines: segment.split(/\n+/).map(part => ({
+          text: part.trim(),
+          indent: 0
+        }))
+      }));
+    }
+
+    const combined = lines.join(" ").trim();
+    return combined ? [{ lines: [{ text: combined, indent: 0 }] }] : [];
+  }
+
+  return blocks;
+};
+
 export function SearchUnit({
   unit,
   cityName,
@@ -105,40 +215,163 @@ export function SearchUnit({
       if (isNumberedSection) {
         const match = normalized.match(/^(\d+)\.\s*([\s\S]*)$/);
         const sectionNumber = match?.[1] ?? "";
-        const remainder = (match?.[2] ?? "").trim();
-        const [titleLine, ...bodyLines] = remainder.split("\n");
-        const titleText = titleLine.trim();
-        const bodyText = bodyLines.join("\n").trim();
+        const remainderRaw = match?.[2] ?? "";
+        const remainderLines = remainderRaw.replace(/\r/g, "").split("\n");
+
+        let titleText = "";
+        let bodyLinesRaw: string[] = [];
+
+        if (remainderLines.length > 0) {
+          const firstContentIndex = remainderLines.findIndex(line => line.trim().length > 0);
+          if (firstContentIndex !== -1) {
+            const candidate = remainderLines[firstContentIndex];
+            const trimmedCandidate = candidate.trim();
+            const isLikelyTitle = !/^[-*•]\s+/.test(trimmedCandidate) && !/^\d+\.\s+/.test(trimmedCandidate) && !trimmedCandidate.includes(":");
+
+            if (isLikelyTitle) {
+              titleText = trimmedCandidate;
+              bodyLinesRaw = remainderLines.slice(firstContentIndex + 1);
+            } else {
+              bodyLinesRaw = remainderLines.slice(firstContentIndex);
+            }
+          }
+        }
+
+        const suggestionBlocks = buildSuggestionBlocks(bodyLinesRaw);
+
+        if (suggestionBlocks.length === 0) {
+          const fallbackBody = remainderRaw.trim();
+          acc.push(
+            <div key={elementKey} className="mb-6 last:mb-0">
+              <SaveableContent
+                content={section}
+                queryContext={unit.query}
+                onSave={onSaveItem}
+                isSaved={isSaved}
+                onElaborate={onElaborate ? () => onElaborate(section, unit.query, unit.id) : undefined}
+                onMoreLike={onMoreLike ? () => onMoreLike(section, unit.query, unit.id) : undefined}
+              >
+                <div className="flex items-start gap-4">
+                  <div className="text-lg font-semibold text-primary leading-none mt-0.5">
+                    {sectionNumber}.
+                  </div>
+                  <div className="flex-1 space-y-4">
+                    {titleText && (
+                      <div className="text-lg font-semibold text-foreground leading-snug">
+                        {titleText}
+                      </div>
+                    )}
+                    {fallbackBody && (
+                      <div
+                        dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(fallbackBody) }}
+                        className="travel-content text-base leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_strong]:text-foreground [&_em]:text-muted-foreground"
+                      />
+                    )}
+                  </div>
+                </div>
+              </SaveableContent>
+            </div>
+          );
+          return acc;
+        }
 
         acc.push(
-          <div key={elementKey} className="mb-6 last:mb-0">
-            <SaveableContent
-              content={section}
-              queryContext={unit.query}
-              onSave={onSaveItem}
-              isSaved={isSaved}
-              onElaborate={onElaborate ? () => onElaborate(section, unit.query, unit.id) : undefined}
-              onMoreLike={onMoreLike ? () => onMoreLike(section, unit.query, unit.id) : undefined}
-            >
-              <div className="flex items-start gap-4">
-                <div className="text-lg font-semibold text-primary leading-none mt-0.5">
-                  {sectionNumber}.
-                </div>
-                <div className="flex-1 space-y-4">
-                  {titleText && (
-                    <div className="text-lg font-semibold text-foreground leading-snug">
-                      {titleText}
-                    </div>
-                  )}
-                  {bodyText && (
-                    <div
-                      dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(bodyText) }}
-                      className="travel-content text-base leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_strong]:text-foreground [&_em]:text-muted-foreground"
-                    />
-                  )}
+          <div key={elementKey} className="mb-8 last:mb-0">
+            <div className="flex items-start gap-4">
+              <div className="text-lg font-semibold text-primary leading-none mt-0.5">
+                {sectionNumber}.
+              </div>
+              <div className="flex-1 space-y-4">
+                {titleText && (
+                  <div className="text-lg font-semibold text-foreground leading-snug">
+                    {titleText}
+                  </div>
+                )}
+                <div className="space-y-3">
+                  {suggestionBlocks.map((block, suggestionIndex) => {
+                    if (block.lines.length === 0) {
+                      return null;
+                    }
+
+                    const suggestionId = `${sectionId}-suggestion-${suggestionIndex}`;
+                    const suggestionContent = block.lines
+                      .map(line => `${"  ".repeat(line.indent)}${line.text}`)
+                      .join("\n")
+                      .trim();
+                    const suggestionSaved = savedItemIds.has(suggestionId);
+
+                    const [firstLine, ...detailLines] = block.lines;
+                    const firstText = firstLine.text;
+                    const firstColonIndex = firstText.indexOf(":");
+                    const firstHasInlineDetail = firstColonIndex > -1 && firstColonIndex < firstText.length - 1;
+                    const firstEndsWithColon = firstColonIndex > -1 && firstColonIndex === firstText.length - 1;
+                    const firstLabel = firstColonIndex > -1 ? firstText.slice(0, firstColonIndex).trim() : firstText.trim();
+                    const firstDetail = firstHasInlineDetail ? firstText.slice(firstColonIndex + 1).trim() : "";
+
+                    const detailElements = detailLines
+                      .filter(line => line.text.trim().length > 0)
+                      .map((detailLine, detailIndex) => {
+                        const detailText = detailLine.text;
+                        const colonIndex = detailText.indexOf(":");
+                        const hasInlineDetail = colonIndex > -1 && colonIndex < detailText.length - 1;
+                        const endsWithColon = colonIndex > -1 && colonIndex === detailText.length - 1;
+                        const label = colonIndex > -1 ? detailText.slice(0, colonIndex).trim() : detailText.trim();
+                        const value = hasInlineDetail ? detailText.slice(colonIndex + 1).trim() : "";
+                        const indentClass = indentationClassForLevel(detailLine.indent);
+
+                        return (
+                          <div
+                            key={`${suggestionId}-detail-${detailIndex}`}
+                            className={`${indentClass} text-sm leading-relaxed text-muted-foreground`}
+                          >
+                            {hasInlineDetail ? (
+                              <>
+                                <span className="font-medium text-foreground">{label}:</span>{" "}
+                                {value}
+                              </>
+                            ) : endsWithColon ? (
+                              <span className="font-medium text-foreground">{label}:</span>
+                            ) : (
+                              label
+                            )}
+                          </div>
+                        );
+                      });
+
+                    return (
+                      <SaveableContent
+                        key={`${suggestionId}`}
+                        content={suggestionContent || firstText}
+                        queryContext={unit.query}
+                        onSave={onSaveItem}
+                        isSaved={suggestionSaved}
+                        onElaborate={onElaborate ? () => onElaborate(suggestionContent || firstText, unit.query, unit.id) : undefined}
+                        onMoreLike={onMoreLike ? () => onMoreLike(suggestionContent || firstText, unit.query, unit.id) : undefined}
+                      >
+                        <div className="space-y-1.5">
+                          {firstHasInlineDetail ? (
+                            <div className="text-base leading-relaxed">
+                              <span className="font-semibold text-foreground">{firstLabel}:</span>{" "}
+                              <span className="text-muted-foreground">{firstDetail}</span>
+                            </div>
+                          ) : (
+                            <div className="text-base font-semibold text-foreground leading-snug">
+                              {firstLabel}
+                              {firstEndsWithColon ? ":" : ""}
+                            </div>
+                          )}
+                          {detailElements.length > 0 && (
+                            <div className="space-y-1.5 pt-0.5">
+                              {detailElements}
+                            </div>
+                          )}
+                        </div>
+                      </SaveableContent>
+                    );
+                  })}
                 </div>
               </div>
-            </SaveableContent>
+            </div>
           </div>
         );
 
