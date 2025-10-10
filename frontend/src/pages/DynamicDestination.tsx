@@ -578,14 +578,14 @@ export default function DynamicDestination() {
     setSearchUnits(prev => prev.filter(unit => unit.id !== id));
   };
 
-  const handleElaborate = async (content: string, originalQuery: string) => {
+  const handleElaborate = async (content: string, _originalQuery: string) => {
     // Extract a snippet from the content for the query
     const snippet = content.slice(0, 100).trim();
     const elaborateQuery = `Tell me more about: ${snippet}${snippet.length < content.length ? '...' : ''}`;
     await performSearch(elaborateQuery);
   };
 
-  const handleMoreLike = async (content: string, originalQuery: string) => {
+  const handleMoreLike = async (content: string, _originalQuery: string) => {
     // Extract key terms from the content for similarity search
     const snippet = content.slice(0, 80).trim();
     const moreLikeQuery = `Find similar recommendations to: ${snippet}${snippet.length < content.length ? '...' : ''}`;
