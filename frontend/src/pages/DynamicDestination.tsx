@@ -1190,64 +1190,44 @@ export default function DynamicDestination() {
         </div>
       )}
 
-      {/* Floating/Sticky Search Box */}
+      {/* Compact Floating Search */}
       {shouldShowFloatingSearch && (
-        <>
-          {/* Floating Bottom Search */}
+        <div
+          className="pointer-events-none fixed inset-x-0 bottom-6 z-40 px-4 md:bottom-8"
+          style={{ bottom: "max(env(safe-area-inset-bottom, 1.5rem), 1.5rem)" }}
+        >
           <div
-            className="pointer-events-none fixed inset-x-0 z-40 pb-4 md:pb-6"
-            style={{ bottom: "max(env(safe-area-inset-bottom), 1rem)" }}
+            className={cn(
+              "pointer-events-auto mx-auto max-w-2xl transition-all duration-300",
+              isScrolledPastHero ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+            )}
           >
-            <div
-              className={cn(
-                "pointer-events-auto mx-4 overflow-hidden rounded-3xl border border-border/60 bg-background/95 px-4 py-3 shadow-2xl backdrop-blur-md transition-all duration-300 md:mx-auto md:max-w-3xl md:px-6 lg:max-w-4xl",
-                isScrolledPastHero ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
-              )}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleCustomSearch();
+              }}
+              className="flex items-center gap-2 rounded-full border border-border/60 bg-background/95 px-4 py-2 shadow-xl backdrop-blur-md"
             >
-              <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span>Keep planning {readableDestination}</span>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleCustomSearch();
-                }}
-                className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background px-3 py-2 shadow-sm"
+              <Search className="h-5 w-5 text-muted-foreground shrink-0" />
+              <Input
+                value={customQuery}
+                onChange={(e) => setCustomQuery(e.target.value)}
+                placeholder={`Ask more about ${readableDestination}...`}
+                disabled={isSearching}
+                className="h-10 flex-1 border-none bg-transparent px-0 text-base focus-visible:border-none focus-visible:ring-0 focus-visible:outline-none"
+              />
+              <Button
+                type="submit"
+                size="icon"
+                disabled={isSearching || !customQuery.trim()}
+                className="h-10 w-10 rounded-full shrink-0"
               >
-                <Search className="h-5 w-5 text-muted-foreground" />
-                <Input
-                  value={customQuery}
-                  onChange={(e) => setCustomQuery(e.target.value)}
-                  placeholder={`Ask more about ${readableDestination}`}
-                  disabled={isSearching}
-                  className="h-11 flex-1 border-none bg-transparent px-0 text-base focus-visible:border-none focus-visible:ring-0 focus-visible:outline-none"
-                />
-                <Button
-                  type="submit"
-                  size="icon"
-                  disabled={isSearching || !customQuery.trim()}
-                  className="h-11 w-11 rounded-full"
-                >
-                  <Search className="h-5 w-5" />
-                </Button>
-              </form>
-              {followUpSuggestions.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {followUpSuggestions.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleSuggestedSearch(item.query)}
-                      className="rounded-full border border-border/70 bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground transition hover:border-primary hover:text-primary"
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                <Search className="h-4 w-4" />
+              </Button>
+            </form>
           </div>
+        </div>
 
           {/* Desktop: Sticky Top Search */}
           <div

@@ -111,7 +111,7 @@ export function SearchUnit({
         const bodyText = bodyLines.join("\n").trim();
 
         acc.push(
-          <div key={elementKey} className="mb-3 last:mb-0 pl-1 sm:pl-3">
+          <div key={elementKey} className="mb-6 last:mb-0">
             <SaveableContent
               content={section}
               queryContext={unit.query}
@@ -120,24 +120,22 @@ export function SearchUnit({
               onElaborate={onElaborate ? () => onElaborate(section, unit.query, unit.id) : undefined}
               onMoreLike={onMoreLike ? () => onMoreLike(section, unit.query, unit.id) : undefined}
             >
-              <div className="rounded-2xl border border-border/60 bg-muted/30 p-4 shadow-sm transition-colors hover:border-primary/50">
-                <div className="flex items-start gap-4">
-                  <div className="text-lg font-semibold text-primary leading-none mt-0.5">
-                    {sectionNumber}.
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    {titleText && (
-                      <div className="text-base font-semibold text-foreground leading-snug">
-                        {titleText}
-                      </div>
-                    )}
-                    {bodyText && (
-                      <div
-                        dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(bodyText) }}
-                        className="travel-content text-sm leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_strong]:text-foreground [&_em]:text-muted-foreground"
-                      />
-                    )}
-                  </div>
+              <div className="flex items-start gap-4">
+                <div className="text-lg font-semibold text-primary leading-none mt-0.5">
+                  {sectionNumber}.
+                </div>
+                <div className="flex-1 space-y-4">
+                  {titleText && (
+                    <div className="text-lg font-semibold text-foreground leading-snug">
+                      {titleText}
+                    </div>
+                  )}
+                  {bodyText && (
+                    <div
+                      dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(bodyText) }}
+                      className="travel-content text-base leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_strong]:text-foreground [&_em]:text-muted-foreground"
+                    />
+                  )}
                 </div>
               </div>
             </SaveableContent>
@@ -148,7 +146,7 @@ export function SearchUnit({
       }
 
       acc.push(
-        <div key={elementKey} className="mb-3 last:mb-0 pl-1 sm:pl-3">
+        <div key={elementKey} className="mb-6 last:mb-0">
           <SaveableContent
             content={section}
             queryContext={unit.query}
@@ -157,12 +155,10 @@ export function SearchUnit({
             onElaborate={onElaborate ? () => onElaborate(section, unit.query, unit.id) : undefined}
             onMoreLike={onMoreLike ? () => onMoreLike(section, unit.query, unit.id) : undefined}
           >
-            <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 shadow-sm transition-colors hover:border-primary/40">
-              <div
-                dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(section) }}
-                className="travel-content text-sm leading-relaxed [&_a]:text-primary [&_a]:underline [&_strong]:text-foreground [&_em]:text-muted-foreground"
-              />
-            </div>
+            <div
+              dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(section) }}
+              className="travel-content text-base leading-relaxed [&_p]:mb-4 [&_a]:text-primary [&_a]:underline [&_strong]:text-foreground [&_em]:text-muted-foreground"
+            />
           </SaveableContent>
         </div>
       );
