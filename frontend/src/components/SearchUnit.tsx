@@ -63,14 +63,14 @@ export function SearchUnit({
 
   // Parse response into saveable sections
   const renderSaveableContent = (content: string) => {
-    // Split content into paragraphs for individual saving
-    const paragraphs = content.split('\n\n').filter(p => p.trim().length > 0);
+    // Split content into lines for individual saving
+    const lines = content.split('\n').filter(l => l.trim().length > 0);
 
-    return paragraphs.reduce<ReactElement[]>((acc, paragraph, index) => {
-      const paragraphId = `${unit.id}-p-${index}`;
-      const isSaved = savedItemIds.has(paragraphId);
+    return lines.reduce<ReactElement[]>((acc, line, index) => {
+      const lineId = `${unit.id}-line-${index}`;
+      const isSaved = savedItemIds.has(lineId);
 
-      const normalized = paragraph.trim();
+      const normalized = line.trim();
       if (!normalized) {
         return acc;
       }
@@ -91,15 +91,15 @@ export function SearchUnit({
       }
 
       acc.push(
-        <div key={elementKey} className="mb-3 last:mb-0">
+        <div key={elementKey} className="mb-1 last:mb-0">
           <SaveableContent
-            content={paragraph}
+            content={line}
             queryContext={unit.query}
             onSave={onSaveItem}
             isSaved={isSaved}
           >
             <div
-              dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(paragraph) }}
+              dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(line) }}
               className="travel-content [&_a]:text-primary [&_a]:underline [&_strong]:text-foreground [&_em]:text-muted-foreground"
             />
           </SaveableContent>
