@@ -1,4 +1,4 @@
-import { useState, useRef, ReactNode, useEffect } from "react";
+import { useState, ReactNode, useEffect } from "react";
 import { Plus, Check, MessageCircle } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -33,7 +33,7 @@ export function SaveableContent({
   const [showButtons, setShowButtons] = useState(false);
   const [saved, setSaved] = useState(isSaved);
   const [isMobile, setIsMobile] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -43,6 +43,10 @@ export function SaveableContent({
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  useEffect(() => {
+    setSaved(isSaved);
+  }, [isSaved]);
 
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -81,6 +85,21 @@ export function SaveableContent({
     }
   };
 
+  const handleFocus = () => {
+    setIsFocused(true);
+    setShowButtons(true);
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) {
+      return;
+    }
+    setIsFocused(false);
+    if (!saved && !showThread) {
+      setShowButtons(false);
+    }
+  };
+
   const handleTap = () => {
     if (isMobile) {
       setShowButtons(true);
@@ -99,70 +118,69 @@ export function SaveableContent({
     }
   };
 
+  const isHighlighted = isHovered || showButtons || saved || isFocused;
+  const highlightColor = "rgba(255, 247, 210, 0.55)";
+
   return (
     <div
-      ref={containerRef}
-      className={`saveable-content relative rounded-xl border border-transparent transition-colors duration-200 ${
-        isHovered ? 'bg-primary/5 border-primary/20 shadow-sm' : 'bg-transparent'
-      } ${isMobile ? 'cursor-pointer' : ''}`}
+      tabIndex={0}
+      className={`saveable-content relative rounded-sm py-1 pl-1 pr-8 sm:pr-10 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
+        isMobile ? 'cursor-pointer' : 'cursor-default'
+      }`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleTap}
-      style={{ padding: isMobile ? '12px' : '16px 72px 16px 20px' }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
     >
-      {children}
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-0 rounded-[4px] transition-opacity duration-150 ${
+          isHighlighted ? 'opacity-100' : 'opacity-0'
+        }`}
+        style={{ backgroundColor: highlightColor }}
+      />
+
+      <div className="relative z-10">
+        {children}
+      </div>
 
       {showButtons && (
         <div
           className={`absolute ${
-            isMobile ? 'right-2 top-2 flex gap-2' : 'right-4 top-1/2 -translate-y-1/2 space-y-2'
-          } opacity-0 animate-fade-in z-10`}
+            isMobile
+              ? 'right-2 top-2 flex items-center gap-2'
+              : 'right-1 top-1/2 -translate-y-1/2 flex flex-col items-end gap-2'
+          } z-20`}
         >
           <Button
-            size={isMobile ? "icon" : "sm"}
-            variant={saved ? "default" : "secondary"}
-            className={`shadow-lg transition-all duration-200 ${
-              saved ? 'bg-green-500 hover:bg-green-600' : ''
+            size="icon"
+            variant="ghost"
+            className={`h-8 w-8 rounded-full border border-border/60 bg-background/95 shadow-sm transition-colors duration-200 ${
+              saved ? 'text-emerald-600 hover:text-emerald-700' : 'text-muted-foreground hover:text-primary'
             }`}
             onClick={handleSave}
             disabled={saved}
+            aria-label={saved ? "Saved section" : "Save this section"}
           >
             {saved ? (
-              isMobile ? (
-                <Check className="w-4 h-4" />
-              ) : (
-                <>
-                  <Check className="w-3 h-3 mr-1" />
-                  Saved
-                </>
-              )
+              <Check className="h-4 w-4" />
             ) : (
-              isMobile ? (
-                <Plus className="w-4 h-4" />
-              ) : (
-                <>
-                  <Plus className="w-3 h-3 mr-1" />
-                  Save
-                </>
-              )
+              <Plus className="h-4 w-4" />
             )}
           </Button>
 
           {onAskMore && (
             <Button
-              size={isMobile ? "icon" : "sm"}
-              variant={showThread ? "default" : "outline"}
-              className="shadow-lg transition-all duration-200"
+              size="icon"
+              variant="ghost"
+              className={`h-8 w-8 rounded-full border border-border/60 bg-background/95 shadow-sm transition-colors duration-200 ${
+                showThread ? 'text-primary hover:text-primary/90' : 'text-muted-foreground hover:text-primary'
+              }`}
               onClick={handleAskMore}
+              aria-label={showThread ? "View conversation" : "Ask follow-up"}
             >
-              {isMobile ? (
-                <MessageCircle className="w-4 h-4" />
-              ) : (
-                <>
-                  <MessageCircle className="w-3 h-3 mr-1" />
-                  Ask More
-                </>
-              )}
+              <MessageCircle className="h-4 w-4" />
             </Button>
           )}
         </div>
