@@ -779,10 +779,10 @@ export default function DynamicDestination() {
         </div>
       </section>
 
-      <section ref={resultsRef} className="relative z-10 pb-24">
+      <section className="relative z-10 pb-24">
         <div className="container mx-auto max-w-4xl px-4 pt-6">
           {/* Sidebar Toggle */}
-          {!isSidebarOpen && (
+          {!isSidebarOpen && searchUnits.length > 0 && (
             <div className="mb-5">
               <Button
                 variant="outline"
@@ -796,30 +796,35 @@ export default function DynamicDestination() {
             </div>
           )}
 
+          {/* Results anchor for scrolling */}
+          <div ref={resultsRef} />
+
           {/* Main Content Area */}
           <div className="space-y-3">
-            {/* Ad Block 1 - 3 ads */}
-            <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
-              {adBlock1.map((ad, idx) => (
-                <a
-                  key={`ad1-${idx}`}
-                  href={ad.url}
-                  className="block rounded-md border border-border bg-muted/30 p-4 transition hover:bg-muted/50"
-                >
-                  <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-medium">{ad.tag}</span>
-                    <span>·</span>
-                    <span>{ad.vendor}</span>
-                  </div>
-                  <h3 className="text-lg font-medium text-primary hover:underline">
-                    {ad.title}
-                  </h3>
-                  <p className="mt-1 text-sm leading-relaxed text-foreground/80">
-                    {ad.body}
-                  </p>
-                </a>
-              ))}
-            </div>
+            {/* Ad Block 1 - 3 ads (only show when there are search results) */}
+            {searchUnits.length > 0 && (
+              <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+                {adBlock1.map((ad, idx) => (
+                  <a
+                    key={`ad1-${idx}`}
+                    href={ad.url}
+                    className="block rounded-md border border-border bg-muted/30 p-4 transition hover:bg-muted/50"
+                  >
+                    <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="font-medium">{ad.tag}</span>
+                      <span>·</span>
+                      <span>{ad.vendor}</span>
+                    </div>
+                    <h3 className="text-lg font-medium text-primary hover:underline">
+                      {ad.title}
+                    </h3>
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                      {ad.body}
+                    </p>
+                  </a>
+                ))}
+              </div>
+            )}
 
             {/* Search Results 0-2 */}
             {searchUnits.slice(0, 3).map((unit, index) => (
