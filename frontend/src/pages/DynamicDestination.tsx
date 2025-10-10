@@ -1286,7 +1286,6 @@ export default function DynamicDestination() {
               </div>
             </div>
           </div>
-        </div>
       )}
     </div>
   );
