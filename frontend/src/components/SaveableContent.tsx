@@ -1,5 +1,5 @@
 import { useState, ReactNode, useEffect } from "react";
-import { Plus, Check, MessageCircle } from "lucide-react";
+import { Plus, Check, MessageCircle, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 
 interface SaveableContentProps {
@@ -7,7 +7,8 @@ interface SaveableContentProps {
   content: string;
   queryContext?: string;
   onSave: (item: SavedItem) => void;
-  onAskMore?: () => void;
+  onElaborate?: () => void;
+  onMoreLike?: () => void;
   isSaved?: boolean;
   showThread?: boolean;
 }
@@ -25,7 +26,8 @@ export function SaveableContent({
   content,
   queryContext,
   onSave,
-  onAskMore,
+  onElaborate,
+  onMoreLike,
   isSaved = false,
   showThread = false
 }: SaveableContentProps) {
@@ -59,11 +61,25 @@ export function SaveableContent({
     onSave(newItem);
     setSaved(true);
 
-    // Don't hide buttons if thread feature is enabled
-    if (!onAskMore) {
+    // Don't hide buttons if thread features are enabled
+    if (!onElaborate && !onMoreLike) {
       setTimeout(() => {
         setShowButtons(false);
       }, 1500);
+    }
+  };
+
+  const handleElaborate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onElaborate) {
+      onElaborate();
+    }
+  };
+
+  const handleMoreLike = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onMoreLike) {
+      onMoreLike();
     }
   };
 
@@ -111,12 +127,6 @@ export function SaveableContent({
     }
   };
 
-  const handleAskMore = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onAskMore) {
-      onAskMore();
-    }
-  };
 
   const isHighlighted = isHovered || showButtons || saved || isFocused;
   const highlightColor = "rgba(255, 247, 210, 0.55)";
@@ -170,17 +180,27 @@ export function SaveableContent({
             )}
           </Button>
 
-          {onAskMore && (
+          {onElaborate && (
             <Button
               size="icon"
               variant="ghost"
-              className={`h-8 w-8 rounded-full border border-border/60 bg-background/95 shadow-sm transition-colors duration-200 ${
-                showThread ? 'text-primary hover:text-primary/90' : 'text-muted-foreground hover:text-primary'
-              }`}
-              onClick={handleAskMore}
-              aria-label={showThread ? "View conversation" : "Ask follow-up"}
+              className="h-8 w-8 rounded-full border border-border/60 bg-background/95 shadow-sm transition-colors duration-200 text-muted-foreground hover:text-primary"
+              onClick={handleElaborate}
+              aria-label="Elaborate on this"
             >
               <MessageCircle className="h-4 w-4" />
+            </Button>
+          )}
+
+          {onMoreLike && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 rounded-full border border-border/60 bg-background/95 shadow-sm transition-colors duration-200 text-muted-foreground hover:text-primary"
+              onClick={handleMoreLike}
+              aria-label="More like this"
+            >
+              <Sparkles className="h-4 w-4" />
             </Button>
           )}
         </div>

@@ -35,6 +35,8 @@ interface SearchUnitProps {
   savedItemIds?: Set<string>;
   onDelete?: (id: string) => void;
   showDelete?: boolean;
+  onElaborate?: (content: string, query: string) => void;
+  onMoreLike?: (content: string, query: string) => void;
 }
 
 export function SearchUnit({
@@ -45,7 +47,9 @@ export function SearchUnit({
   onSaveItem,
   savedItemIds = new Set(),
   onDelete,
-  showDelete = false
+  showDelete = false,
+  onElaborate,
+  onMoreLike
 }: SearchUnitProps) {
   const unitRef = useRef<HTMLDivElement>(null);
 
@@ -97,6 +101,8 @@ export function SearchUnit({
             queryContext={unit.query}
             onSave={onSaveItem}
             isSaved={isSaved}
+            onElaborate={onElaborate ? () => onElaborate(paragraph, unit.query) : undefined}
+            onMoreLike={onMoreLike ? () => onMoreLike(paragraph, unit.query) : undefined}
           >
             <div
               dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(paragraph) }}

@@ -227,7 +227,8 @@ export default function DynamicDestination() {
       ? `Plan smarter with real-time intel, trusted locals, and curated experiences across ${destinationName}.`
       : heroContent.subtitle);
 
-  const featuredPromotions = [
+  // Google Ads limit: 2 blocks with 3 ads each
+  const adBlock1 = [
     {
       tag: "Ad",
       vendor: "Booking.com",
@@ -242,6 +243,41 @@ export default function DynamicDestination() {
       title: `${destinationName} Tours & Activities - Book Online`,
       body: "Skip-the-line tickets • Expert guides • Small groups • Free cancellation. Best price guaranteed for all attractions.",
       cta: "Book now",
+      url: "#",
+    },
+    {
+      tag: "Ad",
+      vendor: "Viator",
+      title: `Top-Rated ${destinationName} Experiences`,
+      body: "Join thousands of travelers. Best prices guaranteed. Free cancellation up to 24 hours before. Mobile tickets accepted.",
+      cta: "Explore tours",
+      url: "#",
+    },
+  ];
+
+  const adBlock2 = [
+    {
+      tag: "Ad",
+      vendor: "Airbnb",
+      title: `Unique Stays in ${destinationName}`,
+      body: "Find entire homes, apartments, and unique properties. Flexible cancellation. Local host support. Book with confidence.",
+      cta: "Browse stays",
+      url: "#",
+    },
+    {
+      tag: "Ad",
+      vendor: "Expedia",
+      title: `${destinationName} Vacation Packages - Save More`,
+      body: "Bundle flights + hotels and save up to $583. Rewards program • Price match guarantee • 24/7 customer support.",
+      cta: "View packages",
+      url: "#",
+    },
+    {
+      tag: "Ad",
+      vendor: "TripAdvisor",
+      title: `${destinationName} - Read Reviews & Compare Prices`,
+      body: "Millions of traveler reviews. Compare prices from 200+ sites. Best deal guarantee. Plan your perfect trip today.",
+      cta: "Compare now",
       url: "#",
     },
   ];
@@ -482,6 +518,20 @@ export default function DynamicDestination() {
     setSearchUnits(prev => prev.filter(unit => unit.id !== id));
   };
 
+  const handleElaborate = async (content: string, originalQuery: string) => {
+    // Extract a snippet from the content for the query
+    const snippet = content.slice(0, 100).trim();
+    const elaborateQuery = `Tell me more about: ${snippet}${snippet.length < content.length ? '...' : ''}`;
+    await performSearch(elaborateQuery);
+  };
+
+  const handleMoreLike = async (content: string, originalQuery: string) => {
+    // Extract key terms from the content for similarity search
+    const snippet = content.slice(0, 80).trim();
+    const moreLikeQuery = `Find similar recommendations to: ${snippet}${snippet.length < content.length ? '...' : ''}`;
+    await performSearch(moreLikeQuery);
+  };
+
   const submitGuideToBackend = async (
     title: string,
     description: string,
@@ -681,43 +731,31 @@ export default function DynamicDestination() {
 
           {/* Main Content Area */}
           <div className="space-y-3">
-            {/* Two Ads at Top */}
-            <a
-              href={featuredPromotions[0].url}
-              className="block rounded-md border border-border bg-muted/30 p-4 transition hover:bg-muted/50"
-            >
-              <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-medium">{featuredPromotions[0].tag}</span>
-                <span>·</span>
-                <span>{featuredPromotions[0].vendor}</span>
-              </div>
-              <h3 className="text-lg font-medium text-primary hover:underline">
-                {featuredPromotions[0].title}
-              </h3>
-              <p className="mt-1 text-sm leading-relaxed text-foreground/80">
-                {featuredPromotions[0].body}
-              </p>
-            </a>
+            {/* Ad Block 1 - 3 ads */}
+            <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+              {adBlock1.map((ad, idx) => (
+                <a
+                  key={`ad1-${idx}`}
+                  href={ad.url}
+                  className="block rounded-md border border-border bg-muted/30 p-4 transition hover:bg-muted/50"
+                >
+                  <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-medium">{ad.tag}</span>
+                    <span>·</span>
+                    <span>{ad.vendor}</span>
+                  </div>
+                  <h3 className="text-lg font-medium text-primary hover:underline">
+                    {ad.title}
+                  </h3>
+                  <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                    {ad.body}
+                  </p>
+                </a>
+              ))}
+            </div>
 
-            <a
-              href={featuredPromotions[1].url}
-              className="block rounded-md border border-border bg-muted/30 p-4 transition hover:bg-muted/50"
-            >
-              <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-medium">{featuredPromotions[1].tag}</span>
-                <span>·</span>
-                <span>{featuredPromotions[1].vendor}</span>
-              </div>
-              <h3 className="text-lg font-medium text-primary hover:underline">
-                {featuredPromotions[1].title}
-              </h3>
-              <p className="mt-1 text-sm leading-relaxed text-foreground/80">
-                {featuredPromotions[1].body}
-              </p>
-            </a>
-
-            {/* Search Results */}
-            {searchUnits.map((unit, index) => (
+            {/* Search Results 0-2 */}
+            {searchUnits.slice(0, 3).map((unit, index) => (
               <SearchUnit
                 key={unit.id}
                 unit={unit}
@@ -728,6 +766,50 @@ export default function DynamicDestination() {
                 savedItemIds={savedItemIds}
                 onDelete={handleDeleteSearch}
                 showDelete={searchUnits.length > 0}
+                onElaborate={handleElaborate}
+                onMoreLike={handleMoreLike}
+              />
+            ))}
+
+            {/* Ad Block 2 - 3 ads (only show if there are 3+ results) */}
+            {searchUnits.length >= 3 && (
+              <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+                {adBlock2.map((ad, idx) => (
+                  <a
+                    key={`ad2-${idx}`}
+                    href={ad.url}
+                    className="block rounded-md border border-border bg-muted/30 p-4 transition hover:bg-muted/50"
+                  >
+                    <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="font-medium">{ad.tag}</span>
+                      <span>·</span>
+                      <span>{ad.vendor}</span>
+                    </div>
+                    <h3 className="text-lg font-medium text-primary hover:underline">
+                      {ad.title}
+                    </h3>
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                      {ad.body}
+                    </p>
+                  </a>
+                ))}
+              </div>
+            )}
+
+            {/* Remaining Search Results (3+) */}
+            {searchUnits.slice(3).map((unit, index) => (
+              <SearchUnit
+                key={unit.id}
+                unit={unit}
+                cityName={destinationName}
+                isFirst={index + 3 === searchUnits.length - 1}
+                isLatest={index + 3 === 0 && unit.id === currentStreamingId}
+                onSaveItem={handleSaveItem}
+                savedItemIds={savedItemIds}
+                onDelete={handleDeleteSearch}
+                showDelete={searchUnits.length > 0}
+                onElaborate={handleElaborate}
+                onMoreLike={handleMoreLike}
               />
             ))}
 

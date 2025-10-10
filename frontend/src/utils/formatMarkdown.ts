@@ -44,22 +44,55 @@ export function formatMarkdownToHtml(text: string): string {
     '<a href="mailto:$1" class="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300">$1</a>'
   );
 
-  // Handle bullet points with proper indentation
+  // Handle bullet points with proper indentation - only convert to <ul> if 3+ consecutive bullets
   const lines = html.split('\n');
   let processedLines: string[] = [];
+
+  // First pass: identify bullet runs
+  const bulletRuns: Array<{start: number, end: number}> = [];
+  let currentRunStart = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmedLine = lines[i].trim();
+    const isBullet = /^[\*\-\•]\s+/.test(trimmedLine);
+
+    if (isBullet) {
+      if (currentRunStart === -1) {
+        currentRunStart = i;
+      }
+    } else if (trimmedLine !== '') {
+      if (currentRunStart !== -1) {
+        const runLength = i - currentRunStart;
+        if (runLength >= 3) {
+          bulletRuns.push({start: currentRunStart, end: i - 1});
+        }
+        currentRunStart = -1;
+      }
+    }
+  }
+
+  // Handle trailing run
+  if (currentRunStart !== -1) {
+    const runLength = lines.length - currentRunStart;
+    if (runLength >= 3) {
+      bulletRuns.push({start: currentRunStart, end: lines.length - 1});
+    }
+  }
+
+  // Second pass: convert to HTML
   let inList = false;
   let listDepth = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmedLine = line.trim();
-
-    // Check for bullet points with various markers
     const bulletMatch = trimmedLine.match(/^[\*\-\•]\s+(.*)$/);
 
-    if (bulletMatch) {
+    // Check if this line is part of a run that should be converted to <ul>
+    const inBulletRun = bulletRuns.some(run => i >= run.start && i <= run.end);
+
+    if (bulletMatch && inBulletRun) {
       const content = bulletMatch[1];
-      // Check indentation level based on original line
       const indent = line.match(/^\s*/)?.[0].length || 0;
       const currentDepth = Math.floor(indent / 2);
 
@@ -68,7 +101,6 @@ export function formatMarkdownToHtml(text: string): string {
         inList = true;
         listDepth = currentDepth;
       } else if (currentDepth < listDepth) {
-        // Close nested lists
         for (let j = listDepth; j > currentDepth; j--) {
           processedLines.push('</ul>');
         }
@@ -85,7 +117,13 @@ export function formatMarkdownToHtml(text: string): string {
         inList = false;
         listDepth = 0;
       }
-      processedLines.push(line);
+
+      // For bullets not in a run, just render as plain text
+      if (bulletMatch) {
+        processedLines.push(line.replace(/^(\s*)([\*\-\•]\s+)/, '$1'));
+      } else {
+        processedLines.push(line);
+      }
     }
   }
 
