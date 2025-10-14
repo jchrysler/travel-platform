@@ -69,8 +69,19 @@ interface StructuredResponse {
 
 // Helper to safely parse JSON from response
 const tryParseJSON = (content: string): StructuredResponse | null => {
-  // Trim and check if it looks like JSON
-  const trimmed = content.trim();
+  // Trim content
+  let trimmed = content.trim();
+
+  // Strip markdown code block wrappers if present (```json ... ``` or ``` ... ```)
+  if (trimmed.startsWith('```')) {
+    // Remove opening ```json or ```
+    trimmed = trimmed.replace(/^```(?:json)?\s*\n?/, '');
+    // Remove closing ```
+    trimmed = trimmed.replace(/\n?```\s*$/, '');
+    trimmed = trimmed.trim();
+  }
+
+  // Check if it looks like JSON
   if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
     return null;
   }

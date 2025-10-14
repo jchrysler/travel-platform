@@ -417,7 +417,10 @@ async def explore_destination(
 
 Answer this travel query: "{query}"
 
-CRITICAL: Return ONLY valid JSON in this exact format:
+CRITICAL: Return ONLY raw JSON - do NOT wrap in markdown code blocks (```json or ```).
+Your response must start with {{ and end with }} - nothing else.
+
+Return in this exact format:
 
 {{
   "sections": [
