@@ -255,14 +255,21 @@ export function SearchUnit({
       return renderStructuredContent(structured);
     }
 
-    // If content starts with { but didn't parse, it's incomplete JSON - show nothing while streaming
-    const trimmed = content.trim();
+    // Strip markdown code blocks to check if this is JSON content
+    let trimmed = content.trim();
+    if (trimmed.startsWith('```')) {
+      trimmed = trimmed.replace(/^```(?:json)?\s*\n?/, '');
+      trimmed = trimmed.replace(/\n?```\s*$/, '');
+      trimmed = trimmed.trim();
+    }
+
+    // If content starts with { or [ (JSON-like), it's incomplete JSON while streaming
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
       // Incomplete JSON - don't render raw JSON text
       if (unit.isStreaming) {
-        return [];
+        return []; // Return empty array - loading indicator will show instead
       }
-      // If not streaming and still can't parse, there was an error - show as plain text
+      // If not streaming and still can't parse, there was an error - show formatted error
       return [
         <div key="json-error" className="mb-6 last:mb-0">
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
