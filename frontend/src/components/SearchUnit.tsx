@@ -42,114 +42,43 @@ interface SearchUnitProps {
   depth?: number;
 }
 
-interface SuggestionLine {
-  text: string;
-  indent: number;
+// Structured response interfaces
+interface ItemDetail {
+  location?: string;
+  price?: string;
+  hours?: string;
+  booking?: string;
+  tips?: string[];
+  [key: string]: any;
 }
 
-interface SuggestionBlock {
-  lines: SuggestionLine[];
+interface RecommendationItem {
+  name: string;
+  description: string;
+  details?: ItemDetail;
 }
 
-const MAX_LABEL_LENGTH = 120;
+interface ContentSection {
+  title: string;
+  items: RecommendationItem[];
+}
 
-const indentationClassForLevel = (indent: number): string => {
-  if (indent >= 3) return "pl-8";
-  if (indent === 2) return "pl-6";
-  if (indent === 1) return "pl-4";
-  return "";
-};
+interface StructuredResponse {
+  sections: ContentSection[];
+}
 
-const buildSuggestionBlocks = (lines: string[]): SuggestionBlock[] => {
-  const blocks: SuggestionBlock[] = [];
-  let current: SuggestionLine[] = [];
-  let expectingDetail = false;
-
-  const flushCurrent = () => {
-    if (current.length > 0) {
-      blocks.push({ lines: current });
-      current = [];
+// Helper to safely parse JSON from response
+const tryParseJSON = (content: string): StructuredResponse | null => {
+  try {
+    const parsed = JSON.parse(content);
+    // Validate structure
+    if (parsed && Array.isArray(parsed.sections)) {
+      return parsed as StructuredResponse;
     }
-    expectingDetail = false;
-  };
-
-  lines.forEach(rawLine => {
-    const sanitized = rawLine.replace(/\r/g, "");
-    if (sanitized.trim().length === 0) {
-      flushCurrent();
-      return;
-    }
-
-    const leadingWhitespace = sanitized.match(/^\s*/)?.[0].length ?? 0;
-    const indentLevel = leadingWhitespace > 0 ? Math.floor(leadingWhitespace / 2) : 0;
-
-    let trimmed = sanitized.trim();
-    const bulletMatch = trimmed.match(/^[-*•]\s+(.*)$/);
-    if (bulletMatch) {
-      trimmed = bulletMatch[1].trim();
-    }
-
-    const colonIndex = trimmed.indexOf(":");
-    const hasInlineDetail = colonIndex > -1 && colonIndex < trimmed.length - 1;
-    const endsWithColon = colonIndex > -1 && colonIndex === trimmed.length - 1;
-    const looksLikeLabel = colonIndex > -1 && colonIndex <= MAX_LABEL_LENGTH;
-
-    const isTopLevelBullet = Boolean(bulletMatch) && indentLevel === 0;
-    const shouldStartNewBlock =
-      current.length === 0 ||
-      isTopLevelBullet ||
-      (!expectingDetail &&
-        indentLevel === 0 &&
-        (
-          (hasInlineDetail && looksLikeLabel) ||
-          (endsWithColon && !hasInlineDetail)
-        )
-      );
-
-    if (shouldStartNewBlock) {
-      if (current.length > 0) {
-        flushCurrent();
-      }
-      current = [{
-        text: trimmed,
-        indent: 0
-      }];
-      expectingDetail = endsWithColon && !hasInlineDetail;
-      return;
-    }
-
-    // Append to current block
-    const effectiveIndent = indentLevel > 0 || expectingDetail ? Math.max(indentLevel, 1) : indentLevel;
-    current.push({
-      text: trimmed,
-      indent: effectiveIndent
-    });
-
-    expectingDetail = endsWithColon && !hasInlineDetail;
-  });
-
-  flushCurrent();
-
-  if (blocks.length === 0) {
-    const fallbackSegments = lines.join("\n")
-      .split(/\n\s*\n/)
-      .map(segment => segment.trim())
-      .filter(Boolean);
-
-    if (fallbackSegments.length > 0) {
-      return fallbackSegments.map(segment => ({
-        lines: segment.split(/\n+/).map(part => ({
-          text: part.trim(),
-          indent: 0
-        }))
-      }));
-    }
-
-    const combined = lines.join(" ").trim();
-    return combined ? [{ lines: [{ text: combined, indent: 0 }] }] : [];
+  } catch {
+    // Not JSON, will fall back to markdown
   }
-
-  return blocks;
+  return null;
 };
 
 export function SearchUnit({
@@ -179,225 +108,133 @@ export function SearchUnit({
     }
   }, [isLatest]);
 
-  // Parse response into saveable sections
-  const renderSaveableContent = (content: string) => {
-    // Split content by numbered sections first (1., 2., 3., etc.)
-    // This keeps each numbered section with all its nested content as ONE unit
-    const numberedSectionRegex = /(?=^\d+\.\s+)/gm;
-    const sections = content.split(numberedSectionRegex).filter(s => s.trim().length > 0);
+  // Render structured JSON content
+  const renderStructuredContent = (data: StructuredResponse): ReactElement[] => {
+    return data.sections.flatMap((section, sectionIndex) => {
+      const elements: ReactElement[] = [];
 
-    return sections.reduce<ReactElement[]>((acc, section, index) => {
-      const sectionId = `${unit.id}-section-${index}`;
-      const isSaved = savedItemIds.has(sectionId);
-
-      const normalized = section.trim();
-      if (!normalized) {
-        return acc;
-      }
-
-      const isHeaderOnly = normalized.startsWith('#');
-      const elementKey = `${unit.id}-chunk-${index}`;
-
-      if (isHeaderOnly) {
-        acc.push(
-          <div
-            key={elementKey}
-            className="travel-content font-semibold [&_h1]:text-primary [&_h2]:text-primary [&_h3]:text-primary"
-          >
-            <div dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(normalized) }} />
-          </div>
+      // Section title
+      if (section.title) {
+        elements.push(
+          <h3 key={`section-${sectionIndex}`} className="text-lg font-semibold mb-4 mt-6 first:mt-0 text-foreground">
+            {section.title}
+          </h3>
         );
-        return acc;
       }
 
-      const isNumberedSection = /^\d+\.\s+/.test(normalized);
+      // Individual items - each wrapped in SaveableContent
+      section.items.forEach((item, itemIndex) => {
+        const itemId = `${unit.id}-s${sectionIndex}-i${itemIndex}`;
+        const isSaved = savedItemIds.has(itemId);
 
-      if (isNumberedSection) {
-        const match = normalized.match(/^(\d+)\.\s*([\s\S]*)$/);
-        const sectionNumber = match?.[1] ?? "";
-        const remainderRaw = match?.[2] ?? "";
-        const remainderLines = remainderRaw.replace(/\r/g, "").split("\n");
+        elements.push(
+          <div key={itemId} className="mb-6 last:mb-0">
+            <SaveableContent
+              content={JSON.stringify(item)}
+              queryContext={unit.query}
+              onSave={onSaveItem}
+              isSaved={isSaved}
+              onElaborate={onElaborate ? () => onElaborate(JSON.stringify(item), unit.query, unit.id) : undefined}
+              onMoreLike={onMoreLike ? () => onMoreLike(JSON.stringify(item), unit.query, unit.id) : undefined}
+            >
+              <div className="space-y-3">
+                {/* Item name */}
+                <div className="text-base font-semibold text-foreground leading-snug">
+                  {item.name}
+                </div>
 
-        let titleText = "";
-        let bodyLinesRaw: string[] = [];
+                {/* Item description */}
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {item.description}
+                </p>
 
-        if (remainderLines.length > 0) {
-          const firstContentIndex = remainderLines.findIndex(line => line.trim().length > 0);
-          if (firstContentIndex !== -1) {
-            const candidate = remainderLines[firstContentIndex];
-            const trimmedCandidate = candidate.trim();
-            const isLikelyTitle = !/^[-*•]\s+/.test(trimmedCandidate) && !/^\d+\.\s+/.test(trimmedCandidate) && !trimmedCandidate.includes(":");
-
-            if (isLikelyTitle) {
-              titleText = trimmedCandidate;
-              bodyLinesRaw = remainderLines.slice(firstContentIndex + 1);
-            } else {
-              bodyLinesRaw = remainderLines.slice(firstContentIndex);
-            }
-          }
-        }
-
-        const suggestionBlocks = buildSuggestionBlocks(bodyLinesRaw);
-
-        if (suggestionBlocks.length === 0) {
-          const fallbackBody = remainderRaw.trim();
-          acc.push(
-            <div key={elementKey} className="mb-6 last:mb-0">
-              <SaveableContent
-                content={section}
-                queryContext={unit.query}
-                onSave={onSaveItem}
-                isSaved={isSaved}
-                onElaborate={onElaborate ? () => onElaborate(section, unit.query, unit.id) : undefined}
-                onMoreLike={onMoreLike ? () => onMoreLike(section, unit.query, unit.id) : undefined}
-              >
-                <div className="flex items-start gap-4">
-                  <div className="text-lg font-semibold text-primary leading-none mt-0.5">
-                    {sectionNumber}.
-                  </div>
-                  <div className="flex-1 space-y-4">
-                    {titleText && (
-                      <div className="text-lg font-semibold text-foreground leading-snug">
-                        {titleText}
+                {/* Item details */}
+                {item.details && (
+                  <div className="space-y-1.5 text-sm">
+                    {item.details.location && (
+                      <div className="text-muted-foreground">
+                        <span className="font-medium text-foreground">Location:</span> {item.details.location}
                       </div>
                     )}
-                    {fallbackBody && (
-                      <div
-                        dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(fallbackBody) }}
-                        className="travel-content text-base leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_strong]:text-foreground [&_em]:text-muted-foreground"
-                      />
+                    {item.details.price && (
+                      <div className="text-muted-foreground">
+                        <span className="font-medium text-foreground">Price:</span> {item.details.price}
+                      </div>
+                    )}
+                    {item.details.hours && (
+                      <div className="text-muted-foreground">
+                        <span className="font-medium text-foreground">Hours:</span> {item.details.hours}
+                      </div>
+                    )}
+                    {item.details.booking && (
+                      <div className="text-muted-foreground">
+                        <span className="font-medium text-foreground">Booking:</span> {item.details.booking}
+                      </div>
+                    )}
+                    {item.details.tips && item.details.tips.length > 0 && (
+                      <div className="mt-2">
+                        <div className="font-medium text-foreground mb-1">Tips:</div>
+                        <ul className="space-y-1 text-muted-foreground">
+                          {item.details.tips.map((tip, tipIndex) => (
+                            <li key={`tip-${tipIndex}`} className="flex gap-2">
+                              <span className="text-primary">•</span>
+                              <span>{tip}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                   </div>
-                </div>
-              </SaveableContent>
-            </div>
-          );
-          return acc;
-        }
-
-        acc.push(
-          <div key={elementKey} className="mb-8 last:mb-0">
-            <div className="flex items-start gap-4">
-              <div className="text-lg font-semibold text-primary leading-none mt-0.5">
-                {sectionNumber}.
-              </div>
-              <div className="flex-1 space-y-4">
-                {titleText && (
-                  <div className="text-lg font-semibold text-foreground leading-snug">
-                    {titleText}
-                  </div>
                 )}
-                <div className="space-y-3">
-                  {suggestionBlocks.map((block, suggestionIndex) => {
-                    if (block.lines.length === 0) {
-                      return null;
-                    }
-
-                    const suggestionId = `${sectionId}-suggestion-${suggestionIndex}`;
-                    const suggestionContent = block.lines
-                      .map(line => `${"  ".repeat(line.indent)}${line.text}`)
-                      .join("\n")
-                      .trim();
-                    const suggestionSaved = savedItemIds.has(suggestionId);
-
-                    const [firstLine, ...detailLines] = block.lines;
-                    const firstText = firstLine.text;
-                    const firstColonIndex = firstText.indexOf(":");
-                    const firstHasInlineDetail = firstColonIndex > -1 && firstColonIndex < firstText.length - 1;
-                    const firstEndsWithColon = firstColonIndex > -1 && firstColonIndex === firstText.length - 1;
-                    const firstLabel = firstColonIndex > -1 ? firstText.slice(0, firstColonIndex).trim() : firstText.trim();
-                    const firstDetail = firstHasInlineDetail ? firstText.slice(firstColonIndex + 1).trim() : "";
-
-                    const detailElements = detailLines
-                      .filter(line => line.text.trim().length > 0)
-                      .map((detailLine, detailIndex) => {
-                        const detailText = detailLine.text;
-                        const colonIndex = detailText.indexOf(":");
-                        const hasInlineDetail = colonIndex > -1 && colonIndex < detailText.length - 1;
-                        const endsWithColon = colonIndex > -1 && colonIndex === detailText.length - 1;
-                        const label = colonIndex > -1 ? detailText.slice(0, colonIndex).trim() : detailText.trim();
-                        const value = hasInlineDetail ? detailText.slice(colonIndex + 1).trim() : "";
-                        const indentClass = indentationClassForLevel(detailLine.indent);
-
-                        return (
-                          <div
-                            key={`${suggestionId}-detail-${detailIndex}`}
-                            className={`${indentClass} text-sm leading-relaxed text-muted-foreground`}
-                          >
-                            {hasInlineDetail ? (
-                              <>
-                                <span className="font-medium text-foreground">{label}:</span>{" "}
-                                {value}
-                              </>
-                            ) : endsWithColon ? (
-                              <span className="font-medium text-foreground">{label}:</span>
-                            ) : (
-                              label
-                            )}
-                          </div>
-                        );
-                      });
-
-                    return (
-                      <SaveableContent
-                        key={`${suggestionId}`}
-                        content={suggestionContent || firstText}
-                        queryContext={unit.query}
-                        onSave={onSaveItem}
-                        isSaved={suggestionSaved}
-                        onElaborate={onElaborate ? () => onElaborate(suggestionContent || firstText, unit.query, unit.id) : undefined}
-                        onMoreLike={onMoreLike ? () => onMoreLike(suggestionContent || firstText, unit.query, unit.id) : undefined}
-                      >
-                        <div className="space-y-1.5">
-                          {firstHasInlineDetail ? (
-                            <div className="text-base leading-relaxed">
-                              <span className="font-semibold text-foreground">{firstLabel}:</span>{" "}
-                              <span className="text-muted-foreground">{firstDetail}</span>
-                            </div>
-                          ) : (
-                            <div className="text-base font-semibold text-foreground leading-snug">
-                              {firstLabel}
-                              {firstEndsWithColon ? ":" : ""}
-                            </div>
-                          )}
-                          {detailElements.length > 0 && (
-                            <div className="space-y-1.5 pt-0.5">
-                              {detailElements}
-                            </div>
-                          )}
-                        </div>
-                      </SaveableContent>
-                    );
-                  })}
-                </div>
               </div>
-            </div>
+            </SaveableContent>
           </div>
         );
+      });
 
-        return acc;
-      }
+      return elements;
+    });
+  };
 
-      acc.push(
-        <div key={elementKey} className="mb-6 last:mb-0">
+  // Render markdown content (fallback for old responses)
+  const renderMarkdownContent = (content: string): ReactElement[] => {
+    // Split by double newlines to get paragraphs/sections
+    const sections = content.split(/\n\n+/).filter(s => s.trim().length > 0);
+
+    return sections.map((section, index) => {
+      const sectionId = `${unit.id}-section-${index}`;
+      const isSaved = savedItemIds.has(sectionId);
+      const normalized = section.trim();
+
+      return (
+        <div key={`section-${index}`} className="mb-6 last:mb-0">
           <SaveableContent
-            content={section}
+            content={normalized}
             queryContext={unit.query}
             onSave={onSaveItem}
             isSaved={isSaved}
-            onElaborate={onElaborate ? () => onElaborate(section, unit.query, unit.id) : undefined}
-            onMoreLike={onMoreLike ? () => onMoreLike(section, unit.query, unit.id) : undefined}
+            onElaborate={onElaborate ? () => onElaborate(normalized, unit.query, unit.id) : undefined}
+            onMoreLike={onMoreLike ? () => onMoreLike(normalized, unit.query, unit.id) : undefined}
           >
             <div
-              dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(section) }}
+              dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(normalized) }}
               className="travel-content text-base leading-relaxed [&_p]:mb-4 [&_a]:text-primary [&_a]:underline [&_strong]:text-foreground [&_em]:text-muted-foreground"
             />
           </SaveableContent>
         </div>
       );
+    });
+  };
 
-      return acc;
-    }, []);
+  // Parse response and render appropriate format
+  const renderSaveableContent = (content: string): ReactElement[] => {
+    // Try to parse as JSON first
+    const structured = tryParseJSON(content);
+    if (structured) {
+      return renderStructuredContent(structured);
+    }
+    // Fallback to markdown for old responses
+    return renderMarkdownContent(content);
   };
 
   return (

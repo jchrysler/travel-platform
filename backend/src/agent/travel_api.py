@@ -417,22 +417,60 @@ async def explore_destination(
 
 Answer this travel query: "{query}"
 
-Provide:
-1. A direct, comprehensive answer to the question
-2. Specific recommendations with names and addresses
-3. Current practical information (opening hours, prices, booking requirements)
-4. Insider tips that tourists might not know
-5. Alternative options or related suggestions
-6. Important logistics or transportation details
+CRITICAL: Return ONLY valid JSON in this exact format:
 
-Format your response to be scannable with clear sections.
-Include specific examples and avoid generic advice.
-If mentioning restaurants, attractions, or venues, provide:
-- Full name and neighborhood/district
-- Approximate costs
-- Best times to visit
-- How to get there
-- What makes it special
+{{
+  "sections": [
+    {{
+      "title": "Section Name",
+      "items": [
+        {{
+          "name": "Place/Restaurant/Experience Name",
+          "description": "2-3 sentence description that captures what makes this place special and why travelers should visit",
+          "details": {{
+            "location": "Full address or specific neighborhood/district",
+            "price": "Price range with context (e.g., €€€ - $50-80 per person)",
+            "hours": "Opening hours or best time to visit",
+            "booking": "Reservation requirements or how to book",
+            "tips": ["Insider tip 1", "Insider tip 2", "Insider tip 3"]
+          }}
+        }}
+      ]
+    }}
+  ]
+}}
+
+Requirements:
+- Create 1-2 sections maximum
+- Include 3-6 items per section (each item = ONE specific place/restaurant/experience)
+- Each item MUST have a name and description
+- Include as many detail fields as relevant (skip if not applicable)
+- Be specific: real names, actual addresses, current prices
+- Tips should be insider knowledge tourists wouldn't know
+- NO markdown formatting, NO bullets - pure JSON only
+- Validate JSON structure before responding
+
+Example for "Best restaurants in Rome":
+{{
+  "sections": [
+    {{
+      "title": "Best Restaurants in Rome",
+      "items": [
+        {{
+          "name": "Roscioli",
+          "description": "Historic salumeria turned restaurant in the Campo de' Fiori area. Known for exceptional cacio e pepe and an extensive wine cellar with over 3,000 bottles. Family-run since 1824.",
+          "details": {{
+            "location": "Via dei Giubbonari 21, Campo de' Fiori",
+            "price": "€€€ - $40-60 per person",
+            "hours": "12:30-4:00 PM, 7:00-11:30 PM (closed Sundays)",
+            "booking": "Reserve 2-3 weeks ahead via phone +39 06 687 5287",
+            "tips": ["Sit at the deli counter for best service", "Try the carbonara - it's their secret specialty", "Wine pairings are exceptional"]
+          }}
+        }}
+      ]
+    }}
+  ]
+}}
 
 Make your response helpful, specific, and actionable."""
 
