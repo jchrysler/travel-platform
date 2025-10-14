@@ -69,14 +69,20 @@ interface StructuredResponse {
 
 // Helper to safely parse JSON from response
 const tryParseJSON = (content: string): StructuredResponse | null => {
+  // Trim and check if it looks like JSON
+  const trimmed = content.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    return null;
+  }
+
   try {
-    const parsed = JSON.parse(content);
+    const parsed = JSON.parse(trimmed);
     // Validate structure
     if (parsed && Array.isArray(parsed.sections)) {
       return parsed as StructuredResponse;
     }
   } catch {
-    // Not JSON, will fall back to markdown
+    // Not valid JSON or incomplete JSON (still streaming)
   }
   return null;
 };
@@ -228,11 +234,38 @@ export function SearchUnit({
 
   // Parse response and render appropriate format
   const renderSaveableContent = (content: string): ReactElement[] => {
+    if (!content || content.trim().length === 0) {
+      return [];
+    }
+
     // Try to parse as JSON first
     const structured = tryParseJSON(content);
     if (structured) {
       return renderStructuredContent(structured);
     }
+
+    // If content starts with { but didn't parse, it's incomplete JSON - show nothing while streaming
+    const trimmed = content.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      // Incomplete JSON - don't render raw JSON text
+      if (unit.isStreaming) {
+        return [];
+      }
+      // If not streaming and still can't parse, there was an error - show as plain text
+      return [
+        <div key="json-error" className="mb-6 last:mb-0">
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+            <p className="text-sm font-medium text-destructive mb-2">
+              Unable to parse response format
+            </p>
+            <pre className="text-xs text-muted-foreground whitespace-pre-wrap overflow-auto max-h-64">
+              {content}
+            </pre>
+          </div>
+        </div>
+      ];
+    }
+
     // Fallback to markdown for old responses
     return renderMarkdownContent(content);
   };
