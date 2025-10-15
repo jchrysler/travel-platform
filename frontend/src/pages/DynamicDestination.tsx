@@ -625,11 +625,57 @@ export default function DynamicDestination() {
     setSearchUnits(prev => prev.filter(unit => unit.id !== id));
   };
 
-  const handleElaborate = async (content: string, _originalQuery: string, parentUnitId?: string) => {
-    // Extract a snippet from the content for the query
-    const snippet = content.slice(0, 100).trim();
-    const elaborateQuery = `Tell me more about: ${snippet}${snippet.length < content.length ? '...' : ''}`;
-    await performSearch(elaborateQuery, parentUnitId);
+  const handleElaborate = async (snippet: string): Promise<string> => {
+    const trimmed = snippet.trim().replace(/\s+/g, ' ');
+    const elaborateQuery = `Share more depth on this for travelers: ${trimmed}. Focus on specifics, stand-out details, and what to expect when visiting.`;
+
+    const response = await fetch("/api/travel/explore", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        city: destinationName,
+        query: elaborateQuery,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Inline elaborate failed", await response.text());
+      throw new Error("Unable to load additional details");
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    let fullResponse = "";
+
+    if (!reader) {
+      return "";
+    }
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split("\n");
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const data = line.slice(6);
+        if (data === "[DONE]") {
+          break;
+        }
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.content) {
+            fullResponse += parsed.content;
+          }
+        } catch (err) {
+          console.error("Inline elaborate parse error", err);
+        }
+      }
+    }
+
+    return fullResponse.trim();
   };
 
   const handleMoreLike = async (content: string, _originalQuery: string, parentUnitId?: string) => {
@@ -1052,7 +1098,7 @@ export default function DynamicDestination() {
       />
 
       {/* Floating Save Guide Button */}
-      {searchUnits.length > 0 && (
+      {savedItems.length > 0 && (
         <div className="fixed bottom-6 right-6 z-50">
           <Button
             size="lg"
@@ -1060,7 +1106,7 @@ export default function DynamicDestination() {
             onClick={() => setShowSaveGuide(true)}
           >
             <Save className="w-5 h-5 mr-2" />
-            Save Guide {searchUnits.length > 0 && `(${searchUnits.length})`}
+            Save Guide {savedItems.length > 0 && `(${savedItems.length})`}
           </Button>
         </div>
       )}

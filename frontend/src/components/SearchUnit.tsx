@@ -3,7 +3,7 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
 import { SaveableContent, SavedItem } from "./SaveableContent";
-import { useEffect, useRef, ReactElement } from "react";
+import { useEffect, useRef, ReactElement, useState } from "react";
 
 interface PlaceResult {
   name: string;
@@ -37,7 +37,7 @@ interface SearchUnitProps {
   savedItemIds?: Set<string>;
   onDelete?: (id: string) => void;
   showDelete?: boolean;
-  onElaborate?: (content: string, query: string, parentUnitId?: string) => void;
+  onElaborate?: (snippet: string, unitId: string, itemKey: string) => Promise<string>;
   onMoreLike?: (content: string, query: string, parentUnitId?: string) => void;
   depth?: number;
 }
@@ -79,6 +79,69 @@ interface ParsedMarkdownResponse {
   hasItemHeadings: boolean;
   hasPartialItem: boolean;
 }
+
+const buildItemSnippet = (item: RecommendationItem): string => {
+  const parts: string[] = [];
+  if (item.name) parts.push(item.name);
+  if (item.description) parts.push(item.description);
+  if (item.details?.location) parts.push(`Located in ${item.details.location}`);
+  return parts.join(" – ");
+};
+
+const formatRecommendationForSave = (item: RecommendationItem, sectionTitle?: string): string => {
+  const lines: string[] = [];
+  if (sectionTitle) {
+    lines.push(`## ${sectionTitle}`);
+  }
+
+  if (item.name) {
+    lines.push(`### ${item.name}`);
+  }
+
+  if (item.description) {
+    lines.push(item.description.trim());
+  }
+
+  const detailLines: string[] = [];
+  if (item.details?.ratingText) {
+    detailLines.push(`- Rating: ${item.details.ratingText}`);
+  }
+  if (item.details?.location) {
+    detailLines.push(`- Location: ${item.details.location}`);
+  }
+  if (item.details?.price) {
+    detailLines.push(`- Price: ${item.details.price}`);
+  }
+  if (item.details?.hours) {
+    detailLines.push(`- Hours: ${item.details.hours}`);
+  }
+  if (item.details?.booking) {
+    detailLines.push(`- Booking: ${item.details.booking}`);
+  }
+  if (item.details?.reviewsSummary) {
+    detailLines.push(`- Review Summary: ${item.details.reviewsSummary}`);
+  }
+
+  if (detailLines.length > 0) {
+    lines.push("", ...detailLines);
+  }
+
+  if (item.details?.reviewsHighlights && item.details.reviewsHighlights.length > 0) {
+    lines.push("", "**Review Highlights**");
+    item.details.reviewsHighlights.forEach(highlight => {
+      lines.push(`- ${highlight}`);
+    });
+  }
+
+  if (item.details?.tips && item.details.tips.length > 0) {
+    lines.push("", "**Insider Tips**");
+    item.details.tips.forEach(tip => {
+      lines.push(`- ${tip}`);
+    });
+  }
+
+  return lines.join("\n").trim();
+};
 
 const stripCodeFenceLines = (content: string): string => {
   return content
@@ -417,6 +480,10 @@ export function SearchUnit({
   depth = 0
 }: SearchUnitProps) {
   const unitRef = useRef<HTMLDivElement>(null);
+  const [itemExpansions, setItemExpansions] = useState<Record<string, {
+    status: 'loading' | 'loaded' | 'error';
+    content?: string;
+  }>>({});
 
   // Auto-scroll to latest unit
   useEffect(() => {
@@ -451,6 +518,50 @@ export function SearchUnit({
       section.items.forEach((item, itemIndex) => {
         const itemId = `${unit.id}-s${sectionIndex}-i${itemIndex}`;
         const isSaved = savedItemIds.has(itemId);
+        const saveContent = formatRecommendationForSave(item, section.title);
+        const rawSnippet = buildItemSnippet(item) || item.name || "";
+        const snippet = rawSnippet.length > 280 ? `${rawSnippet.slice(0, 280)}…` : rawSnippet;
+        const expansion = itemExpansions[itemId];
+
+        const handleToggleExpansion = () => {
+          if (!onElaborate || !snippet) {
+            return;
+          }
+
+          let shouldFetch = true;
+          setItemExpansions(prev => {
+            const current = prev[itemId];
+            if (current?.status === 'loading') {
+              shouldFetch = false;
+              return prev;
+            }
+            if (current?.status === 'loaded') {
+              const updated = { ...prev };
+              delete updated[itemId];
+              shouldFetch = false;
+              return updated;
+            }
+            return { ...prev, [itemId]: { status: 'loading' } };
+          });
+
+          if (!shouldFetch) {
+            return;
+          }
+
+          void onElaborate(snippet, unit.id, itemId)
+            .then(result => {
+              setItemExpansions(prev => ({
+                ...prev,
+                [itemId]: { status: 'loaded', content: result }
+              }));
+            })
+            .catch(() => {
+              setItemExpansions(prev => ({
+                ...prev,
+                [itemId]: { status: 'error', content: 'Unable to load additional details right now.' }
+              }));
+            });
+        };
 
         const ratingValue = item.details?.ratingValue;
         const ratingCount = item.details?.ratingCount;
@@ -464,12 +575,13 @@ export function SearchUnit({
             className="mb-8 last:mb-0 transition-transform duration-300 ease-out hover:-translate-y-0.5"
           >
             <SaveableContent
-              content={JSON.stringify(item)}
+              content={saveContent}
               queryContext={unit.query}
               onSave={onSaveItem}
               isSaved={isSaved}
-              onElaborate={onElaborate ? () => onElaborate(JSON.stringify(item), unit.query, unit.id) : undefined}
-              onMoreLike={onMoreLike ? () => onMoreLike(JSON.stringify(item), unit.query, unit.id) : undefined}
+              itemId={itemId}
+              onElaborate={onElaborate ? handleToggleExpansion : undefined}
+              onMoreLike={onMoreLike && snippet ? () => onMoreLike(snippet, unit.query, unit.id) : undefined}
             >
               <div className="rounded-2xl border border-border/60 bg-card/95 p-5 sm:p-6 shadow-sm transition-all duration-300 hover:shadow-lg">
                 <div className="space-y-4">
@@ -568,6 +680,28 @@ export function SearchUnit({
                       )}
                     </div>
                   )}
+
+                  {expansion?.status === 'loading' && (
+                    <div className="mt-4 rounded-xl border border-dashed border-border/60 bg-muted/40 p-4 text-sm text-muted-foreground">
+                      Expanding this recommendation…
+                    </div>
+                  )}
+
+                  {expansion?.status === 'error' && expansion.content && (
+                    <div className="mt-4 rounded-xl border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+                      {expansion.content}
+                    </div>
+                  )}
+
+                  {expansion?.status === 'loaded' && expansion.content && (
+                    <div className="mt-4 rounded-xl border border-border/50 bg-muted/30 p-4">
+                      <div className="mb-2 text-sm font-semibold text-foreground">Deeper dive</div>
+                      <div
+                        className="prose prose-sm max-w-none text-muted-foreground"
+                        dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(expansion.content) }}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </SaveableContent>
@@ -596,7 +730,6 @@ export function SearchUnit({
             queryContext={unit.query}
             onSave={onSaveItem}
             isSaved={isSaved}
-            onElaborate={onElaborate ? () => onElaborate(normalized, unit.query, unit.id) : undefined}
             onMoreLike={onMoreLike ? () => onMoreLike(normalized, unit.query, unit.id) : undefined}
           >
             <div

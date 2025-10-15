@@ -11,6 +11,7 @@ interface SaveableContentProps {
   onMoreLike?: () => void;
   isSaved?: boolean;
   showThread?: boolean;
+  itemId?: string;
 }
 
 export interface SavedItem {
@@ -29,7 +30,8 @@ export function SaveableContent({
   onElaborate,
   onMoreLike,
   isSaved = false,
-  showThread = false
+  showThread = false,
+  itemId
 }: SaveableContentProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showButtons, setShowButtons] = useState(false);
@@ -67,8 +69,9 @@ export function SaveableContent({
 
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const newItemId = itemId || Date.now().toString();
     const newItem: SavedItem = {
-      id: Date.now().toString(),
+      id: newItemId,
       content,
       queryContext,
       timestamp: new Date(),

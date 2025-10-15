@@ -7,6 +7,7 @@ import { Input } from "./ui/input";
 import type { SavedItem } from "./SaveableContent";
 import { useNavigate } from "react-router-dom";
 import { slugify } from "@/utils/slugify";
+import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
 
 interface SavedItemsListProps {
   items: SavedItem[];
@@ -37,6 +38,7 @@ export function SavedItemsList({
         const header = item.queryContext ? `From: ${item.queryContext}\n\n` : '';
         const cleanContent = item.content
           .replace(/\*\*/g, '')
+          .replace(/^###?\s+/gm, '')
           .replace(/\* {2}/g, '• ')
           .replace(/^\* /gm, '• ')
           .trim();
@@ -53,6 +55,7 @@ export function SavedItemsList({
         const header = item.queryContext ? `From: ${item.queryContext}\n\n` : '';
         const cleanContent = item.content
           .replace(/\*\*/g, '')
+          .replace(/^###?\s+/gm, '')
           .replace(/\* {2}/g, '• ')
           .replace(/^\* /gm, '• ')
           .trim();
@@ -248,22 +251,10 @@ export function SavedItemsList({
                         From: {item.queryContext}
                       </div>
                     )}
-                    <div className="text-sm pr-6 whitespace-pre-line">
-                      {(() => {
-                        // Clean up markdown formatting
-                        let cleanContent = item.content
-                          .replace(/\*\*/g, '')
-                          .replace(/\* {2}/g, '• ')
-                          .replace(/^\* /gm, '• ')
-                          .trim();
-
-                        if (cleanContent.length > 200) {
-                          cleanContent = cleanContent.substring(0, 200) + '...';
-                        }
-
-                        return cleanContent;
-                      })()}
-                    </div>
+                    <div
+                      className="prose prose-sm max-w-none text-muted-foreground pr-6"
+                      dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(item.content) }}
+                    />
                     <div className="text-xs text-muted-foreground mt-2">
                       {new Date(item.timestamp).toLocaleTimeString()}
                     </div>
