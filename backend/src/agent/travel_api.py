@@ -417,10 +417,19 @@ async def explore_destination(
 
 Answer this travel query: "{query}"
 
-CRITICAL: Return ONLY raw JSON - do NOT wrap in markdown code blocks (```json or ```).
-Your response must start with {{ and end with }} - nothing else.
+CRITICAL FORMAT:
+1. Start with 1-2 sentences of engaging intro text to set context
+2. Then provide structured JSON (do NOT wrap in ```json or ``` code blocks)
+3. The JSON must be valid and complete
 
-Return in this exact format:
+Example format:
+Here's a curated selection of Edinburgh's literary pubs, perfect for following in the footsteps of famous writers:
+
+{{
+  "sections": [...]
+}}
+
+Return in this exact JSON structure:
 
 {{
   "sections": [
