@@ -1,4 +1,4 @@
-import { MapPin, Trash2 } from "lucide-react";
+import { MapPin, Trash2, Star } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
@@ -48,6 +48,9 @@ interface ItemDetail {
   price?: string;
   hours?: string;
   booking?: string;
+  ratingValue?: number;
+  ratingCount?: number;
+  ratingText?: string;
   reviewsSummary?: string;
   reviewsHighlights?: string[];
   tips?: string[];
@@ -148,7 +151,10 @@ const parseMarkdownRecommendations = (
     }
   };
 
-  const assignDetail = (label: keyof ItemDetail | string, value: string) => {
+  const assignDetail = (
+    label: keyof ItemDetail | string,
+    value: string | number | string[]
+  ) => {
     if (!currentItem) return;
     if (!currentItem.details) {
       currentItem.details = {};
@@ -309,6 +315,25 @@ const parseMarkdownRecommendations = (
         continue;
       }
 
+      if (rawLabel === "rating") {
+        if (!currentItem.details) {
+          currentItem.details = {};
+        }
+
+        const ratingMatch = value.match(/([0-9]+(?:\.[0-9]+)?)\s*\/\s*5(?:\s*\(([0-9,]+)\s+reviews?\))?/i);
+        if (ratingMatch) {
+          currentItem.details.ratingValue = parseFloat(ratingMatch[1]);
+          if (ratingMatch[2]) {
+            const count = parseInt(ratingMatch[2].replace(/,/g, ""), 10);
+            if (!Number.isNaN(count)) {
+              currentItem.details.ratingCount = count;
+            }
+          }
+        }
+        currentItem.details.ratingText = value;
+        continue;
+      }
+
       if (rawLabel === "tips") {
         currentBulletKey = "tips";
         if (value.length > 0) {
@@ -427,6 +452,12 @@ export function SearchUnit({
         const itemId = `${unit.id}-s${sectionIndex}-i${itemIndex}`;
         const isSaved = savedItemIds.has(itemId);
 
+        const ratingValue = item.details?.ratingValue;
+        const ratingCount = item.details?.ratingCount;
+        const ratingText = item.details?.ratingText;
+        const hasRating =
+          typeof ratingValue === "number" || (ratingText && ratingText.trim().length > 0);
+
         elements.push(
           <div
             key={itemId}
@@ -442,9 +473,29 @@ export function SearchUnit({
             >
               <div className="rounded-2xl border border-border/60 bg-card/95 p-5 sm:p-6 shadow-sm transition-all duration-300 hover:shadow-lg">
                 <div className="space-y-4">
-                  {/* Item name */}
-                  <div className="text-lg sm:text-xl font-semibold text-foreground leading-tight">
-                    {item.name}
+                  {/* Item name + rating */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="text-lg sm:text-xl font-semibold text-foreground leading-tight">
+                      {item.name}
+                    </div>
+                    {hasRating && (
+                      <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                        <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+                        {typeof ratingValue === "number" ? (
+                          <div className="flex items-center gap-1">
+                            <span>{ratingValue.toFixed(1)}</span>
+                            <span className="text-xs text-primary/80">/5</span>
+                            {typeof ratingCount === "number" && (
+                              <span className="text-xs text-primary/80">
+                                ({ratingCount.toLocaleString()} reviews)
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-primary/80">{ratingText}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Item description */}
@@ -483,7 +534,7 @@ export function SearchUnit({
                       )}
                       {item.details.reviewsSummary && (
                         <div className="text-muted-foreground">
-                          <span className="font-medium text-foreground">Reviews:</span>{" "}
+                          <span className="font-medium text-foreground">Review Summary:</span>{" "}
                           {item.details.reviewsSummary}
                         </div>
                       )}

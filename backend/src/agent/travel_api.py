@@ -421,15 +421,18 @@ CRITICAL FORMAT (stream-friendly markdown):
 1. Begin with 1-2 sentences of engaging intro text (plain prose).
 2. Organize recommendations into 1-2 thematic sections using markdown headings (`## Section Title`).
 3. Inside each section, list 3-6 individual recommendations using markdown subheadings (`### Place or Experience Name`).
-4. Under each subheading, provide detail lines using bold labels followed by text. Required labels (omit a line entirely if the info is unknown):
+4. Under each subheading, provide detail lines using bold labels followed by text. Always include the core logistics:
    - `**Description:**` → 2-3 sentence overview
    - `**Location:**`
    - `**Price:**`
    - `**Hours:**`
    - `**Booking:**`
+   - `**Tips:**` → insider advice bullets (1-3 items)
+   When the recommendation is a venue/experience that receives public reviews (restaurants, hotels, attractions, tours), also include:
+   - `**Rating:**` → formatted exactly as `X.X/5 (Y reviews)` (omit if reviews unavailable)
    - `**Reviews Summary:**` → concise synthesis of guest sentiment
-   - `**Reviews Highlights:**` → follow with 2-4 markdown bullets capturing notable quotes/themes
-   - `**Tips:**` → insider advice bullets (may reuse the same bullet list as highlights or provide distinct practical pointers)
+   - `**Reviews Highlights:**` → 2-4 markdown bullets with standout quotes/themes
+   For itineraries, general city guidance, or logistical notes where public reviews aren’t relevant, omit the review-related fields entirely.
 5. Do NOT use code fences, tables, numbered lists, or JSON. The response must remain valid markdown that reads naturally even without custom parsing.
 
 Example format:
@@ -441,6 +444,7 @@ Edinburgh's pub scene blends literary lore with nightly folk sessions—here's a
 **Location:** Lawnmarket, Old Town
 **Hours:** 10:00 AM – 5:00 PM (closed Mondays)
 **Booking:** Walk-in friendly, donations appreciated
+**Rating:** 4.7/5 (612 reviews)
 **Reviews Summary:** Visitors love the intimate scale and storytelling exhibits, noting it feels like stepping into the authors' lives.
 **Reviews Highlights:**
 - “A hidden gem packed with Scottish literary history.”
