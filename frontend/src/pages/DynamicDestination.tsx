@@ -872,6 +872,7 @@ export default function DynamicDestination() {
         </div>
       </section>
 
+      {(searchUnits.length > 0 || isSearching) && (
       <section className="relative z-10 pb-24">
         <div className="container mx-auto max-w-4xl px-4 pt-6">
           {/* Sidebar Toggle */}
@@ -978,21 +979,10 @@ export default function DynamicDestination() {
               />
             ))}
 
-            {/* Empty State */}
-            {searchUnits.length === 0 && !isSearching && (
-              <Card className="mt-8 p-12 text-center">
-                <Sparkles className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                <h3 className="mb-2 text-xl font-semibold md:text-2xl">
-                  Start exploring {readableDestination}
-                </h3>
-                <p className="text-muted-foreground">
-                  Ask any question or tap a suggested idea to generate a ready-to-run plan.
-                </p>
-              </Card>
-            )}
           </div>
         </div>
       </section>
+      )}
 
       {/* Collapsible Sidebar */}
       {isSidebarOpen && (

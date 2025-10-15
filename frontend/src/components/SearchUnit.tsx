@@ -498,16 +498,26 @@ export function SearchUnit({
   }, [isLatest]);
 
   // Render structured JSON content
-  const renderStructuredContent = (data: StructuredResponse): ReactElement[] => {
+  const renderStructuredContent = (
+    data: StructuredResponse,
+    options?: { idPrefix?: string; sectionClassName?: string }
+  ): ReactElement[] => {
+    const baseId = options?.idPrefix ?? unit.id;
+
     return data.sections.flatMap((section, sectionIndex) => {
       const elements: ReactElement[] = [];
 
       // Section title
       if (section.title) {
+        const defaultSectionTitleClass = "text-xl font-semibold tracking-tight mb-4 mt-8 first:mt-2 text-foreground";
+        const sectionTitleClass = options?.sectionClassName
+          ? `${defaultSectionTitleClass} ${options.sectionClassName}`
+          : defaultSectionTitleClass;
+
         elements.push(
           <h3
-            key={`section-${sectionIndex}`}
-            className="text-xl font-semibold tracking-tight mb-4 mt-8 first:mt-2 text-foreground"
+            key={`${baseId}-section-title-${sectionIndex}`}
+            className={sectionTitleClass}
           >
             {section.title}
           </h3>
@@ -516,7 +526,7 @@ export function SearchUnit({
 
       // Individual items - each wrapped in SaveableContent
       section.items.forEach((item, itemIndex) => {
-        const itemId = `${unit.id}-s${sectionIndex}-i${itemIndex}`;
+        const itemId = `${baseId}-s${sectionIndex}-i${itemIndex}`;
         const isSaved = savedItemIds.has(itemId);
         const saveContent = formatRecommendationForSave(item, section.title);
         const rawSnippet = buildItemSnippet(item) || item.name || "";
@@ -694,13 +704,37 @@ export function SearchUnit({
                   )}
 
                   {expansion?.status === 'loaded' && expansion.content && (
-                    <div className="mt-4 rounded-xl border border-border/50 bg-muted/30 p-4">
-                      <div className="mb-2 text-sm font-semibold text-foreground">Deeper dive</div>
-                      <div
-                        className="prose prose-sm max-w-none text-muted-foreground"
-                        dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(expansion.content) }}
-                      />
-                    </div>
+                    (() => {
+                      const parsedExpansion = parseMarkdownRecommendations(expansion.content, false);
+                      const hasStructuredItems = parsedExpansion?.sections.some(section => section.items.length > 0);
+
+                      if (parsedExpansion && hasStructuredItems) {
+                        return (
+                          <div className="mt-4 space-y-4">
+                            {parsedExpansion.intro && (
+                              <div
+                                className="rounded-xl border border-border/50 bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground"
+                                dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(parsedExpansion.intro) }}
+                              />
+                            )}
+                            {renderStructuredContent(
+                              { intro: parsedExpansion.intro, sections: parsedExpansion.sections },
+                              { idPrefix: `${itemId}-exp`, sectionClassName: "text-lg font-semibold tracking-tight mb-3 mt-6 first:mt-2 text-foreground" }
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="mt-4 rounded-xl border border-border/50 bg-muted/30 p-4">
+                          <div className="mb-2 text-sm font-semibold text-foreground">Deeper dive</div>
+                          <div
+                            className="prose prose-sm max-w-none text-muted-foreground"
+                            dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(expansion.content) }}
+                          />
+                        </div>
+                      );
+                    })()
                   )}
                 </div>
               </div>
