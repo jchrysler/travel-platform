@@ -55,8 +55,35 @@ export default function SavedItemsPage() {
         setEditedTitle(list.title);
         setEditedDescription(list.description || "");
       } else {
-        // List not found, redirect
-        navigate(`/explore/${destination}`);
+        const encoded = new URLSearchParams(window.location.search).get("data");
+        if (!encoded) {
+          navigate(`/explore/${destination}`);
+          return;
+        }
+
+        try {
+          const decoded = JSON.parse(decodeURIComponent(encoded));
+          const hydrated: SavedListData = {
+            id: decoded.id || listId,
+            title: decoded.title || `Saved picks for ${destinationName}`,
+            description: decoded.description,
+            destination: decoded.destination || destinationName,
+            items: (decoded.items || []).map((item: any, index: number) => ({
+              id: item.id || `shared-${index}`,
+              content: item.content || "",
+              queryContext: item.queryContext || item.query || "Saved recommendation",
+              timestamp: new Date(item.timestamp || Date.now())
+            })),
+            createdAt: new Date(decoded.createdAt || Date.now()),
+            updatedAt: new Date(decoded.updatedAt || Date.now())
+          };
+          setSavedList(hydrated);
+          setEditedTitle(hydrated.title);
+          setEditedDescription(hydrated.description || "");
+        } catch (err) {
+          console.error("Failed to decode shared saved list", err);
+          navigate(`/explore/${destination}`);
+        }
       }
     }
   }, [listId, destination, navigate]);

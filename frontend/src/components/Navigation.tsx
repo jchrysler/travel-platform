@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { MapPin, Calendar, Compass } from "lucide-react";
+import { MapPin, Calendar, Compass, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Navigation() {
@@ -11,8 +11,8 @@ export default function Navigation() {
         <div className="flex items-center justify-between h-14">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2">
-              <MapPin className="h-6 w-6 text-primary" />
-              <span className="font-bold text-lg">Travel Platform</span>
+              <Sparkles className="h-6 w-6 text-primary" />
+              <span className="font-bold text-lg">Startsly</span>
             </div>
             
             <div className="flex items-center gap-1">
