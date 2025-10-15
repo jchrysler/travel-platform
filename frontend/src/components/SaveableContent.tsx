@@ -147,14 +147,16 @@ export function SaveableContent({
 
 
   const isHighlighted = isHovered || showButtons || saved || isFocused;
-  const highlightColor = "rgba(255, 244, 214, 0.65)";
+  const containerRing = isHighlighted
+    ? "ring-2 ring-primary/40 shadow-lg"
+    : "ring-1 ring-border/50 shadow-sm hover:ring-primary/25";
 
   return (
     <div
       tabIndex={0}
       className={`saveable-content relative rounded-2xl px-2 sm:px-3 py-2 pr-12 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
         isMobile ? 'cursor-pointer' : 'cursor-default'
-      }`}
+      } ${containerRing}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleTap}
@@ -163,10 +165,12 @@ export function SaveableContent({
     >
       <span
         aria-hidden="true"
-        className={`pointer-events-none absolute inset-0 rounded-2xl transition-opacity duration-150 ${
-          isHighlighted ? 'opacity-100' : 'opacity-0'
+        className={`pointer-events-none absolute inset-1 rounded-2xl transition duration-200 ease-out ${
+          isHighlighted ? 'opacity-100 scale-[0.995]' : 'opacity-0'
         }`}
-        style={{ backgroundColor: highlightColor }}
+        style={{
+          background: 'linear-gradient(135deg, rgba(255,237,200,0.35), rgba(255,255,255,0))'
+        }}
       />
 
       <div className="relative z-10">
