@@ -582,7 +582,7 @@ export function SearchUnit({
         elements.push(
           <div
             key={itemId}
-            className="mb-8 last:mb-0 transition-transform duration-300 ease-out hover:-translate-y-0.5"
+            className="mb-8 last:mb-0 transition-transform duration-300 ease-out hover:-translate-y-0.5 animate-in fade-in-50"
           >
             <SaveableContent
               content={saveContent}
@@ -844,7 +844,12 @@ export function SearchUnit({
       className={`search-unit ${isLatest ? 'animate-slide-down' : ''}`}
     >
       {/* Main Content Unit */}
-      <Card className="rounded-lg border border-border bg-card transition-all hover:border-primary/30 hover:shadow-md">
+      <Card className="relative overflow-hidden rounded-lg border border-border bg-card transition-all hover:border-primary/30 hover:shadow-lg">
+        {unit.isStreaming && (
+          <div className="absolute inset-x-0 top-0 h-1 bg-primary/20">
+            <div className="h-full w-1/2 animate-pulse rounded-r-full bg-primary/60" />
+          </div>
+        )}
         <div className="px-6 py-5">
           {/* Query Header */}
           <div className="mb-4">
@@ -853,6 +858,14 @@ export function SearchUnit({
                 <h3 className="text-xl font-semibold text-primary leading-tight mb-1">
                   {unit.refinedTitle || unit.query}
                 </h3>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground/80">
+                  <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 font-medium text-primary/80">
+                    {unit.query}
+                  </span>
+                  {unit.isStreaming && (
+                    <span className="text-[11px] uppercase tracking-[0.3em] text-primary/70">Live</span>
+                  )}
+                </div>
                 {unit.refinedTitle && unit.refinedTitle !== unit.query && (
                   <p className="text-sm text-muted-foreground">
                     Search: "{unit.query}"

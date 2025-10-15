@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Search, Sparkles, MapPin, BookOpen, Save, PanelRightOpen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -119,6 +119,8 @@ export default function DynamicDestination() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScrolledPastHero, setIsScrolledPastHero] = useState(false);
   const [hasUserSearched, setHasUserSearched] = useState(false);
+  const [ghostPromptIndex, setGhostPromptIndex] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const heroContent = getDestinationHeroContent(destination ?? "");
   const readableDestination = destinationName || "this destination";
@@ -220,6 +222,20 @@ export default function DynamicDestination() {
   const combinedPopularQueries = Array.from(new Set([...primaryQueries, ...bucketQueries]));
 
   const heroSuggestionChips = primaryQueries.slice(0, 3);
+
+  const rotatingPrompts = useMemo(() => {
+    const uniquePrompts = Array.from(new Set([
+      ...heroSuggestionChips,
+      ...primaryQueries.slice(0, 6),
+      ...fallbackPrimaryQueries
+    ])).filter(Boolean);
+    return uniquePrompts.length ? uniquePrompts : [
+      `Top highlights in ${readableDestination}`,
+      `Plan a perfect 3-day stay in ${readableDestination}`
+    ];
+  }, [heroSuggestionChips, primaryQueries, fallbackPrimaryQueries, readableDestination]);
+
+  const primaryDemoQuery = rotatingPrompts[0] || `Perfect day in ${readableDestination}`;
 
   const heroHeadline = heroImage?.headline?.trim()
     || (destinationName ? `Experience ${destinationName} like a local` : heroContent.title);
@@ -443,6 +459,38 @@ export default function DynamicDestination() {
 
     return () => window.removeEventListener('scroll', handleScroll);
   }, [hasUserSearched]);
+
+  useEffect(() => {
+    searchInputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (rotatingPrompts.length < 2) return;
+    const interval = setInterval(() => {
+      setGhostPromptIndex((prev) => (prev + 1) % rotatingPrompts.length);
+    }, 3200);
+    return () => clearInterval(interval);
+  }, [rotatingPrompts]);
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      const activeTag = (event.target as HTMLElement | null)?.tagName?.toLowerCase();
+      const isTypingInInput = activeTag === "input" || activeTag === "textarea";
+
+      if (!isTypingInInput && event.key === '/' && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+
+      if ((event.key === 'k' || event.key === 'K') && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
   const handleCustomSearch = async () => {
     if (!customQuery.trim() || !destination) return;
@@ -826,47 +874,79 @@ export default function DynamicDestination() {
                   e.preventDefault();
                   handleCustomSearch();
                 }}
-                className="mt-4 flex flex-col gap-3 sm:flex-row"
+                className="mt-6 flex flex-col gap-3 md:flex-row"
               >
-                <Input
-                  value={customQuery}
-                  onChange={(e) => setCustomQuery(e.target.value)}
-                  placeholder={`What should we plan for ${readableDestination}?`}
-                  disabled={isSearching}
-                  className="h-16 flex-1 border-2 border-white/40 bg-white/20 text-xl text-white placeholder:text-white/70 shadow-xl backdrop-blur-sm focus-visible:border-white focus-visible:ring-white/80"
-                />
+                <div className="relative flex-1">
+                  <Input
+                    value={customQuery}
+                    onChange={(e) => setCustomQuery(e.target.value)}
+                    ref={searchInputRef}
+                    placeholder={hasUserSearched ? `Search more in ${readableDestination}` : `e.g. ${rotatingPrompts[ghostPromptIndex]}`}
+                    disabled={isSearching}
+                    className="h-[72px] w-full rounded-2xl border-2 border-white/40 bg-white/15 px-6 text-xl md:text-2xl text-white placeholder:text-white/70 shadow-2xl backdrop-blur-md focus-visible:border-white focus-visible:ring-white/80"
+                  />
+                  {!hasUserSearched && (
+                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[11px] uppercase tracking-[0.5em] text-white/60">
+                      /
+                    </div>
+                  )}
+                </div>
                 <Button
                   type="submit"
                   size="lg"
                   disabled={isSearching || !customQuery.trim()}
-                  className="h-16 px-10 text-xl font-semibold shadow-xl"
+                  className="h-[72px] rounded-2xl px-10 text-xl font-semibold shadow-2xl"
                 >
                   <Search className="mr-2 h-6 w-6" />
                   Search
                 </Button>
               </form>
 
-              <div className="min-h-[32px]">
-                {suggestionsLoading ? (
-                  <span className="text-sm text-white/70">Loading smart suggestions…</span>
-                ) : heroSuggestionChips.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-white/70">
-                    <span className="text-xs uppercase tracking-wide text-white/50">Try:</span>
-                    {heroSuggestionChips.map((query) => (
-                      <Button
-                        key={query}
-                        type="button"
-                        variant="secondary"
-                        onClick={() => handleSuggestedSearch(query)}
-                        disabled={isSearching}
-                        className="border-white/20 bg-white/15 text-white hover:bg-white/25"
-                      >
-                        {query}
-                      </Button>
-                    ))}
+              {!hasUserSearched && (
+                <div className="space-y-4">
+                  <p className="text-sm text-white/80">
+                    Ask anything from “romantic rooftop bars” to “kid-friendly rainy day plans” and get structured answers in seconds.
+                  </p>
+
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant="secondary"
+                      onClick={() => handleSuggestedSearch(primaryDemoQuery)}
+                      className="w-full rounded-2xl border border-white/20 bg-white/15 text-base font-semibold text-white shadow-lg transition hover:bg-white/25 sm:w-auto"
+                      disabled={isSearching}
+                    >
+                      Preview: {primaryDemoQuery}
+                    </Button>
+                    <span className="text-xs uppercase tracking-[0.3em] text-white/60">
+                      Powered by AI · Verify key details
+                    </span>
                   </div>
-                ) : null}
-              </div>
+
+                  <div className="min-h-[32px]">
+                    {suggestionsLoading ? (
+                      <span className="text-sm text-white/70">Loading smart suggestions…</span>
+                    ) : heroSuggestionChips.length > 0 ? (
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-white/75">
+                        <span className="text-xs uppercase tracking-wide text-white/50">Trending:</span>
+                        {heroSuggestionChips.map((query) => (
+                          <Button
+                            key={query}
+                            type="button"
+                            variant="ghost"
+                            onClick={() => handleSuggestedSearch(query)}
+                            disabled={isSearching}
+                            className="rounded-full border border-white/30 bg-white/10 px-4 text-white hover:bg-white/20"
+                          >
+                            {query}
+                          </Button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

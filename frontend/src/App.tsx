@@ -7,7 +7,6 @@ import DestinationExplorer from "@/pages/DestinationExplorer";
 import DynamicDestination from "@/pages/DynamicDestination";
 import DestinationGuide from "@/pages/DestinationGuide";
 import SavedItemsPage from "@/pages/SavedItemsPage";
-import HeroSeeder from "@/pages/HeroSeeder";
 import Navigation from "@/components/Navigation";
 
 export default function App() {
@@ -25,7 +24,6 @@ export default function App() {
           <Route path="/explore/:destination/draft/:id" element={<DynamicDestination />} />
           <Route path="/explore/:destination/:guide" element={<DestinationGuide />} />
           <Route path="/explore/:destination/saved/:listId" element={<SavedItemsPage />} />
-          <Route path="/hero-seeder" element={<HeroSeeder />} />
         </Routes>
       </div>
     </ThemeProvider>
