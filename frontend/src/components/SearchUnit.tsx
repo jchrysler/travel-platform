@@ -64,6 +64,7 @@ interface ContentSection {
 }
 
 interface StructuredResponse {
+  intro?: string;
   sections: ContentSection[];
 }
 
@@ -119,76 +120,17 @@ const tryParseJSON = (content: string): StructuredResponse | null => {
   return null;
 };
 
-// Helper to extract complete items from partial JSON
-const extractCompleteItems = (partialJson: string): RecommendationItem[] => {
-  const items: RecommendationItem[] = [];
+// Helper to clean JSON content (remove fences, trim trailing characters)
+const normalizeJsonContent = (content: string): string => {
+  let normalized = content.trim();
 
-  // Try to parse the whole thing first
-  const complete = tryParseJSON(partialJson);
-  if (complete) {
-    // Return all items from all sections
-    return complete.sections.flatMap(section => section.items);
+  if (normalized.startsWith("```")) {
+    normalized = normalized.replace(/^```(?:json)?\s*\n?/, "");
+    normalized = normalized.replace(/\n?```\s*$/, "");
+    normalized = normalized.trim();
   }
 
-  // If that fails, try to extract individual complete items
-  // Look for complete item objects (those that have closing braces)
-  // This is a simple heuristic - we look for patterns like: {...}, or {...}]
-
-  try {
-    // Try to find items array and extract complete items
-    const itemsMatch = partialJson.match(/"items"\s*:\s*\[([\s\S]*?)(?:\]|\s*$)/);
-    if (!itemsMatch) return items;
-
-    const itemsContent = itemsMatch[1];
-    let depth = 0;
-    let currentItem = '';
-    let inString = false;
-    let escapeNext = false;
-
-    for (let i = 0; i < itemsContent.length; i++) {
-      const char = itemsContent[i];
-      currentItem += char;
-
-      if (escapeNext) {
-        escapeNext = false;
-        continue;
-      }
-
-      if (char === '\\') {
-        escapeNext = true;
-        continue;
-      }
-
-      if (char === '"') {
-        inString = !inString;
-        continue;
-      }
-
-      if (inString) continue;
-
-      if (char === '{') {
-        depth++;
-      } else if (char === '}') {
-        depth--;
-        if (depth === 0 && currentItem.trim()) {
-          // We have a complete item
-          try {
-            const parsed = JSON.parse(currentItem.trim().replace(/,\s*$/, ''));
-            if (parsed.name && parsed.description) {
-              items.push(parsed as RecommendationItem);
-            }
-          } catch {
-            // This item isn't complete yet
-          }
-          currentItem = '';
-        }
-      }
-    }
-  } catch {
-    // Parsing failed, return what we have
-  }
-
-  return items;
+  return normalized;
 };
 
 export function SearchUnit({
@@ -342,126 +284,49 @@ export function SearchUnit({
       return [];
     }
 
-    const elements: ReactElement[] = [];
     const { intro, jsonContent, hasJson } = splitIntroAndJson(content);
 
-    // Render intro text if it exists (streams character by character)
-    if (intro) {
+    if (!hasJson) {
+      return renderMarkdownContent(content);
+    }
+
+    const elements: ReactElement[] = [];
+
+    // Parse JSON (if present)
+    const normalizedJson = hasJson ? normalizeJsonContent(jsonContent) : "";
+    const structured = hasJson ? tryParseJSON(normalizedJson) : null;
+
+    const introToRender = (structured?.intro?.trim() ?? intro)?.trim() ?? "";
+
+    if (introToRender.length > 0) {
       elements.push(
         <div key="intro" className="mb-4 text-base leading-relaxed text-muted-foreground">
-          {intro}
+          {introToRender}
         </div>
       );
     }
 
-    if (!hasJson) {
-      // No JSON found - fallback to markdown rendering
-      return renderMarkdownContent(content);
-    }
-
-    // Try to parse complete JSON first
-    const structured = tryParseJSON(jsonContent);
     if (structured) {
-      // Fully parsed - render all sections
       elements.push(...renderStructuredContent(structured));
       return elements;
     }
 
-    // JSON is incomplete - try to extract and render complete items incrementally
-    const completeItems = extractCompleteItems(jsonContent);
-
-    if (completeItems.length > 0) {
-      // Render complete items as they arrive
-      completeItems.forEach((item, itemIndex) => {
-        const itemId = `${unit.id}-item-${itemIndex}`;
-        const isSaved = savedItemIds.has(itemId);
-
-        elements.push(
-          <div key={itemId} className="mb-6 last:mb-0">
-            <SaveableContent
-              content={JSON.stringify(item)}
-              queryContext={unit.query}
-              onSave={onSaveItem}
-              isSaved={isSaved}
-              onElaborate={onElaborate ? () => onElaborate(JSON.stringify(item), unit.query, unit.id) : undefined}
-              onMoreLike={onMoreLike ? () => onMoreLike(JSON.stringify(item), unit.query, unit.id) : undefined}
-            >
-              <div className="space-y-3">
-                {/* Item name */}
-                <div className="text-base font-semibold text-foreground leading-snug">
-                  {item.name}
-                </div>
-
-                {/* Item description */}
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {item.description}
-                </p>
-
-                {/* Item details */}
-                {item.details && (
-                  <div className="space-y-1.5 text-sm">
-                    {item.details.location && (
-                      <div className="text-muted-foreground">
-                        <span className="font-medium text-foreground">Location:</span> {item.details.location}
-                      </div>
-                    )}
-                    {item.details.price && (
-                      <div className="text-muted-foreground">
-                        <span className="font-medium text-foreground">Price:</span> {item.details.price}
-                      </div>
-                    )}
-                    {item.details.hours && (
-                      <div className="text-muted-foreground">
-                        <span className="font-medium text-foreground">Hours:</span> {item.details.hours}
-                      </div>
-                    )}
-                    {item.details.booking && (
-                      <div className="text-muted-foreground">
-                        <span className="font-medium text-foreground">Booking:</span> {item.details.booking}
-                      </div>
-                    )}
-                    {item.details.tips && item.details.tips.length > 0 && (
-                      <div className="mt-2">
-                        <div className="font-medium text-foreground mb-1">Tips:</div>
-                        <ul className="space-y-1 text-muted-foreground">
-                          {item.details.tips.map((tip, tipIndex) => (
-                            <li key={`tip-${tipIndex}`} className="flex gap-2">
-                              <span className="text-primary">•</span>
-                              <span>{tip}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </SaveableContent>
-          </div>
-        );
-      });
+    if (unit.isStreaming) {
+      return elements;
     }
 
-    // If still streaming and no complete items yet, don't show raw JSON
-    if (unit.isStreaming && elements.length === 0) {
-      return [];
-    }
-
-    // If not streaming but couldn't parse, show error
-    if (!unit.isStreaming && completeItems.length === 0 && !intro) {
-      elements.push(
-        <div key="json-error" className="mb-6 last:mb-0">
-          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-            <p className="text-sm font-medium text-destructive mb-2">
-              Unable to parse response format
-            </p>
-            <pre className="text-xs text-muted-foreground whitespace-pre-wrap overflow-auto max-h-64">
-              {content}
-            </pre>
-          </div>
+    elements.push(
+      <div key="json-error" className="mb-6 last:mb-0">
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+          <p className="text-sm font-medium text-destructive mb-2">
+            Unable to parse response format
+          </p>
+          <pre className="text-xs text-muted-foreground whitespace-pre-wrap overflow-auto max-h-64">
+            {content}
+          </pre>
         </div>
-      );
-    }
+      </div>
+    );
 
     return elements;
   };

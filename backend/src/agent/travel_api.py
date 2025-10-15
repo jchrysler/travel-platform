@@ -417,21 +417,23 @@ async def explore_destination(
 
 Answer this travel query: "{query}"
 
-CRITICAL FORMAT:
-1. Start with 1-2 sentences of engaging intro text to set context
-2. Then provide structured JSON (do NOT wrap in ```json or ``` code blocks)
-3. The JSON must be valid and complete
+CRITICAL FORMAT (follow exactly):
+1. Write 1-2 sentences of engaging intro text to set context. Output the intro as plain text (no JSON yet).
+2. Immediately after the intro, output a valid JSON object (no markdown code fences) that repeats the same intro in an "intro" field and follows the schema below.
+3. Ensure the JSON is valid and complete before finishing.
 
 Example format:
-Here's a curated selection of Edinburgh's literary pubs, perfect for following in the footsteps of famous writers:
+Here's a curated selection of Edinburgh's literary pubs, perfect for following in the footsteps of famous writers.
 
 {{
+  "intro": "Here's a curated selection of Edinburgh's literary pubs, perfect for following in the footsteps of famous writers.",
   "sections": [...]
 }}
 
-Return in this exact JSON structure:
+JSON schema to follow:
 
 {{
+  "intro": "Same intro text as above",
   "sections": [
     {{
       "title": "Section Name",
@@ -459,11 +461,12 @@ Requirements:
 - Include as many detail fields as relevant (skip if not applicable)
 - Be specific: real names, actual addresses, current prices
 - Tips should be insider knowledge tourists wouldn't know
-- NO markdown formatting, NO bullets - pure JSON only
+- NO markdown formatting, NO bullets - plain JSON only
 - Validate JSON structure before responding
 
 Example for "Best restaurants in Rome":
 {{
+  "intro": "Rome's dining scene blends centuries-old tradition with modern creativity—here are standout restaurants worth a dedicated visit.",
   "sections": [
     {{
       "title": "Best Restaurants in Rome",
