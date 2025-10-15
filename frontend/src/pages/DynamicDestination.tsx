@@ -848,7 +848,7 @@ export default function DynamicDestination() {
                 : "min-h-[520px] py-24"
             )}
           >
-            <div className="flex flex-col gap-6 text-white md:max-w-3xl">
+            <div className="mx-auto w-full max-w-3xl flex flex-col gap-6 text-white">
               <Link
                 to="/explore"
                 className="inline-flex w-fit items-center gap-2 text-sm font-medium text-white/70 transition hover:text-white"
@@ -862,10 +862,10 @@ export default function DynamicDestination() {
                 {destinationName}
               </div>
 
-              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
                 {heroHeadline}
               </h1>
-              <p className="text-lg font-medium text-white/90 sm:text-xl md:text-2xl">
+              <p className="text-base font-medium text-white/90 sm:text-lg md:text-xl">
                 {heroSubheadline}
               </p>
 
@@ -883,7 +883,7 @@ export default function DynamicDestination() {
                     ref={searchInputRef}
                     placeholder={hasUserSearched ? `Search more in ${readableDestination}` : `e.g. ${rotatingPrompts[ghostPromptIndex]}`}
                     disabled={isSearching}
-                    className="h-[72px] w-full rounded-2xl border-2 border-white/40 bg-white/15 px-6 text-xl md:text-2xl text-white placeholder:text-white/70 shadow-2xl backdrop-blur-md focus-visible:border-white focus-visible:ring-white/80"
+                    className="h-[64px] w-full rounded-2xl border-2 border-white/35 bg-white/15 px-6 text-lg sm:text-xl md:text-2xl text-white placeholder:text-white/70 shadow-xl backdrop-blur-md focus-visible:border-white focus-visible:ring-white/80"
                   />
                   {!hasUserSearched && (
                     <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[11px] uppercase tracking-[0.5em] text-white/60">
@@ -895,7 +895,7 @@ export default function DynamicDestination() {
                   type="submit"
                   size="lg"
                   disabled={isSearching || !customQuery.trim()}
-                  className="h-[72px] rounded-2xl px-10 text-xl font-semibold shadow-2xl"
+                  className="h-[64px] rounded-2xl px-10 text-lg font-semibold shadow-xl"
                 >
                   <Search className="mr-2 h-6 w-6" />
                   Search
@@ -904,7 +904,7 @@ export default function DynamicDestination() {
 
               {!hasUserSearched && (
                 <div className="space-y-4">
-                  <p className="text-sm text-white/80">
+                  <p className="text-sm text-white/85">
                     Ask anything from “romantic rooftop bars” to “kid-friendly rainy day plans” and get structured answers in seconds.
                   </p>
 
@@ -914,7 +914,7 @@ export default function DynamicDestination() {
                       size="lg"
                       variant="secondary"
                       onClick={() => handleSuggestedSearch(primaryDemoQuery)}
-                      className="w-full rounded-2xl border border-white/20 bg-white/15 text-base font-semibold text-white shadow-lg transition hover:bg-white/25 sm:w-auto"
+                      className="w-full rounded-2xl border border-white/25 bg-white/15 text-base font-semibold text-white shadow-lg transition hover:bg-white/25 sm:w-auto"
                       disabled={isSearching}
                     >
                       Preview: {primaryDemoQuery}
@@ -928,9 +928,12 @@ export default function DynamicDestination() {
                     {suggestionsLoading ? (
                       <span className="text-sm text-white/70">Loading smart suggestions…</span>
                     ) : heroSuggestionChips.length > 0 ? (
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-white/75">
-                        <span className="text-xs uppercase tracking-wide text-white/50">Trending:</span>
-                        {heroSuggestionChips.map((query) => (
+                      <div className="flex flex-col gap-2 text-sm text-white/75 sm:flex-row sm:flex-wrap sm:items-center">
+                        <span className="text-xs uppercase tracking-wide text-white/50">
+                          Trending searches
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {heroSuggestionChips.map((query) => (
                           <Button
                             key={query}
                             type="button"
@@ -941,7 +944,8 @@ export default function DynamicDestination() {
                           >
                             {query}
                           </Button>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     ) : null}
                   </div>
