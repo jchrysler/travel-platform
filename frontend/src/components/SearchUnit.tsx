@@ -68,69 +68,243 @@ interface StructuredResponse {
   sections: ContentSection[];
 }
 
-// Helper to extract intro text and JSON parts from response
-interface ParsedResponse {
+interface ParsedDelimitedResponse {
   intro: string;
-  jsonContent: string;
-  hasJson: boolean;
+  sections: ContentSection[];
+  foundDelimiter: boolean;
+  hasPartialItem: boolean;
 }
 
-const splitIntroAndJson = (content: string): ParsedResponse => {
-  const trimmed = content.trim();
-
-  // Strip markdown code blocks if present
-  let cleaned = trimmed;
-  if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '');
-    cleaned = cleaned.replace(/\n?```\s*$/, '');
-    cleaned = cleaned.trim();
-  }
-
-  // Find the start of JSON (first '{' character)
-  const jsonStart = cleaned.indexOf('{');
-
-  if (jsonStart === -1) {
-    // No JSON found
-    return { intro: cleaned, jsonContent: '', hasJson: false };
-  }
-
-  if (jsonStart === 0) {
-    // JSON starts immediately, no intro
-    return { intro: '', jsonContent: cleaned, hasJson: true };
-  }
-
-  // Split into intro and JSON parts
-  const intro = cleaned.slice(0, jsonStart).trim();
-  const jsonContent = cleaned.slice(jsonStart);
-
-  return { intro, jsonContent, hasJson: true };
+const stripCodeFenceLines = (content: string): string => {
+  return content
+    .split(/\r?\n/)
+    .filter(line => !line.trim().startsWith("```"))
+    .join("\n");
 };
 
-// Helper to parse complete JSON
+const normalizeWhitespace = (text: string): string => {
+  return text.replace(/\s+/g, " ").trim();
+};
+
 const tryParseJSON = (content: string): StructuredResponse | null => {
+  const cleaned = stripCodeFenceLines(content).trim();
+  if (!cleaned) {
+    return null;
+  }
+
+  const firstBrace = cleaned.indexOf("{");
+  if (firstBrace === -1) {
+    return null;
+  }
+
+  const candidate = cleaned.slice(firstBrace);
+
   try {
-    const parsed = JSON.parse(content);
-    // Validate structure
+    const parsed = JSON.parse(candidate);
     if (parsed && Array.isArray(parsed.sections)) {
       return parsed as StructuredResponse;
     }
   } catch {
-    // Not valid JSON or incomplete JSON (still streaming)
+    // ignore parse errors
   }
+
   return null;
 };
 
-// Helper to clean JSON content (remove fences, trim trailing characters)
-const normalizeJsonContent = (content: string): string => {
-  let normalized = content.trim();
-
-  if (normalized.startsWith("```")) {
-    normalized = normalized.replace(/^```(?:json)?\s*\n?/, "");
-    normalized = normalized.replace(/\n?```\s*$/, "");
-    normalized = normalized.trim();
+const parseDelimitedResponse = (
+  content: string,
+  isStreaming: boolean
+): ParsedDelimitedResponse | null => {
+  const cleaned = stripCodeFenceLines(content);
+  if (!cleaned.trim()) {
+    return null;
   }
 
-  return normalized;
+  const lines = cleaned.split(/\r?\n/);
+
+  const introLines: string[] = [];
+  const sectionsOrder: string[] = [];
+  const sectionsMap = new Map<string, RecommendationItem[]>();
+
+  let currentSection: string | null = null;
+  let currentItem: RecommendationItem | null = null;
+  let collectingTips = false;
+  let tipBuffer: string[] = [];
+  let foundDelimiter = false;
+
+  const ensureSection = () => {
+    if (!currentSection || !currentSection.trim()) {
+      currentSection = "Highlights";
+    }
+    if (!sectionsMap.has(currentSection)) {
+      sectionsMap.set(currentSection, []);
+      sectionsOrder.push(currentSection);
+    }
+  };
+
+  const assignDetail = (label: string, value: string) => {
+    if (!currentItem) return;
+    if (!currentItem.details) {
+      currentItem.details = {};
+    }
+    currentItem.details[label] = value;
+  };
+
+  const finalizeCurrentItem = () => {
+    if (!currentItem) return;
+
+    if (tipBuffer.length > 0) {
+      if (!currentItem.details) {
+        currentItem.details = {};
+      }
+      currentItem.details.tips = tipBuffer.slice();
+    }
+
+    const hasCore = Boolean(
+      currentItem.name && currentItem.name.trim().length > 0
+    );
+
+    if (hasCore) {
+      ensureSection();
+
+      if (currentItem.details) {
+        const entries = Object.entries(currentItem.details).filter(([_, value]) => {
+          if (Array.isArray(value)) {
+            return value.length > 0;
+          }
+          return value !== undefined && String(value).trim().length > 0;
+        });
+
+        if (entries.length > 0) {
+          currentItem.details = Object.fromEntries(entries);
+        } else {
+          delete currentItem.details;
+        }
+      }
+
+      sectionsMap.get(currentSection!)?.push(currentItem);
+    }
+
+    currentItem = null;
+    tipBuffer = [];
+    collectingTips = false;
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      collectingTips = false;
+      continue;
+    }
+
+    if (/^---\s*save this\s*---$/i.test(trimmed)) {
+      foundDelimiter = true;
+      if (currentItem) {
+        finalizeCurrentItem();
+      }
+      ensureSection();
+      currentItem = { name: "", description: "" };
+      collectingTips = false;
+      tipBuffer = [];
+      continue;
+    }
+
+    const sectionMatch = trimmed.match(/^Section:\s*(.+)$/i);
+    if (sectionMatch) {
+      if (currentItem) {
+        finalizeCurrentItem();
+      }
+      currentSection = normalizeWhitespace(sectionMatch[1]);
+      if (!currentSection) {
+        currentSection = "Highlights";
+      }
+      ensureSection();
+      collectingTips = false;
+      continue;
+    }
+
+    if (!currentItem) {
+      introLines.push(line);
+      continue;
+    }
+
+    if (collectingTips && /^[-•]\s*(.+)$/.test(trimmed)) {
+      const tipText = trimmed.replace(/^[-•]\s*/, "").trim();
+      if (tipText.length > 0) {
+        tipBuffer.push(tipText);
+      }
+      continue;
+    }
+
+    const keyValueMatch = line.match(/^([A-Za-z ]+):\s*(.*)$/);
+    if (keyValueMatch) {
+      const rawKey = keyValueMatch[1].trim();
+      const value = keyValueMatch[2].trim();
+      const key = rawKey.toLowerCase();
+
+      collectingTips = false;
+
+      if (key === "name") {
+        currentItem.name = value;
+      } else if (key === "description") {
+        currentItem.description = value;
+      } else if (key === "location") {
+        assignDetail("location", value);
+      } else if (key === "price") {
+        assignDetail("price", value);
+      } else if (key === "hours") {
+        assignDetail("hours", value);
+      } else if (key === "booking") {
+        assignDetail("booking", value);
+      } else if (key === "tips") {
+        collectingTips = true;
+        if (value.length > 0) {
+          tipBuffer.push(value);
+        }
+      } else {
+        assignDetail(rawKey, value);
+      }
+
+      continue;
+    }
+
+    if (collectingTips) {
+      tipBuffer.push(trimmed);
+      continue;
+    }
+
+    // Treat any other line as a continuation of the description
+    const continuation = trimmed;
+    if (continuation.length > 0) {
+      if (currentItem.description && currentItem.description.length > 0) {
+        currentItem.description = `${currentItem.description} ${continuation}`;
+      } else {
+        currentItem.description = continuation;
+      }
+    }
+  }
+
+  const hasPartialItem = Boolean(currentItem);
+
+  if (!isStreaming && currentItem) {
+    finalizeCurrentItem();
+  }
+
+  const sections: ContentSection[] = sectionsOrder.map(title => ({
+    title,
+    items: sectionsMap.get(title) ?? []
+  }));
+
+  const intro = normalizeWhitespace(introLines.join(" "));
+
+  return {
+    intro,
+    sections,
+    foundDelimiter,
+    hasPartialItem
+  };
 };
 
 export function SearchUnit({
@@ -278,57 +452,54 @@ export function SearchUnit({
     });
   };
 
-  // Parse response and render appropriate format (with incremental streaming)
+  // Parse response and render appropriate format (stream-friendly)
   const renderSaveableContent = (content: string): ReactElement[] => {
     if (!content || content.trim().length === 0) {
       return [];
     }
 
-    const { intro, jsonContent, hasJson } = splitIntroAndJson(content);
-
-    if (!hasJson) {
-      return renderMarkdownContent(content);
-    }
-
     const elements: ReactElement[] = [];
+    const structuredJson = tryParseJSON(content);
 
-    // Parse JSON (if present)
-    const normalizedJson = hasJson ? normalizeJsonContent(jsonContent) : "";
-    const structured = hasJson ? tryParseJSON(normalizedJson) : null;
+    if (structuredJson) {
+      if (structuredJson.intro && structuredJson.intro.trim().length > 0) {
+        elements.push(
+          <div key="intro" className="mb-4 text-base leading-relaxed text-muted-foreground">
+            {structuredJson.intro.trim()}
+          </div>
+        );
+      }
 
-    const introToRender = (structured?.intro?.trim() ?? intro)?.trim() ?? "";
-
-    if (introToRender.length > 0) {
-      elements.push(
-        <div key="intro" className="mb-4 text-base leading-relaxed text-muted-foreground">
-          {introToRender}
-        </div>
-      );
-    }
-
-    if (structured) {
-      elements.push(...renderStructuredContent(structured));
+      elements.push(...renderStructuredContent(structuredJson));
       return elements;
     }
 
-    if (unit.isStreaming) {
-      return elements;
+    const parsed = parseDelimitedResponse(content, Boolean(unit.isStreaming));
+
+    if (parsed) {
+      const { intro, sections, foundDelimiter, hasPartialItem } = parsed;
+
+      if (intro.length > 0) {
+        elements.push(
+          <div key="intro" className="mb-4 text-base leading-relaxed text-muted-foreground">
+            {intro}
+          </div>
+        );
+      }
+
+      const hasItems = sections.some(section => section.items.length > 0);
+
+      if (hasItems) {
+        elements.push(...renderStructuredContent({ intro, sections }));
+        return elements;
+      }
+
+      if (unit.isStreaming || foundDelimiter || hasPartialItem || intro.length > 0) {
+        return elements;
+      }
     }
 
-    elements.push(
-      <div key="json-error" className="mb-6 last:mb-0">
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-          <p className="text-sm font-medium text-destructive mb-2">
-            Unable to parse response format
-          </p>
-          <pre className="text-xs text-muted-foreground whitespace-pre-wrap overflow-auto max-h-64">
-            {content}
-          </pre>
-        </div>
-      </div>
-    );
-
-    return elements;
+    return renderMarkdownContent(content);
   };
 
   return (

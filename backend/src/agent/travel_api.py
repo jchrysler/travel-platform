@@ -417,77 +417,46 @@ async def explore_destination(
 
 Answer this travel query: "{query}"
 
-CRITICAL FORMAT (follow exactly):
-1. Write 1-2 sentences of engaging intro text to set context. Output the intro as plain text (no JSON yet).
-2. Immediately after the intro, output a valid JSON object (no markdown code fences) that repeats the same intro in an "intro" field and follows the schema below.
-3. Ensure the JSON is valid and complete before finishing.
+CRITICAL FORMAT (stream exactly like this):
+1. Start with 1-2 sentences of engaging intro text. This must be plain text with no bullets or code fences.
+2. For each thematic grouping, output a line beginning with "Section: " followed by the section title.
+3. For every individual recommendation, output a delimiter line of exactly "--- Save This ---" and then list key-value pairs on separate lines.
+   Required keys (omit a line if the detail is unknown):
+     - Name: {place or experience}
+     - Description: 2-3 sentence highlight
+     - Location: specific neighborhood or address
+     - Price: realistic range with context
+     - Hours: best visiting window or opening hours
+     - Booking: reservation guidance
+     - Tips: (write "Tips:" on one line, then include 1-3 bullet lines prefixed with "-")
+4. Leave a blank line between sections. Do NOT return JSON, markdown tables, numbered lists, or code fences.
 
 Example format:
-Here's a curated selection of Edinburgh's literary pubs, perfect for following in the footsteps of famous writers.
+Edinburgh's pub scene blends literary lore with nightly folk sessions—here's a crawl locals actually love.
 
-{{
-  "intro": "Here's a curated selection of Edinburgh's literary pubs, perfect for following in the footsteps of famous writers.",
-  "sections": [...]
-}}
+Section: Literary Pubs
+--- Save This ---
+Name: The Writer's Museum
+Description: Housed in Lady Stair's Close, this intimate museum celebrates Robert Burns, Sir Walter Scott, and Robert Louis Stevenson. Pause in the courtyard for a quiet dram before heading out.
+Location: Lawnmarket, Old Town
+Price: Free entry, donations appreciated
+Hours: 10:00 AM - 5:00 PM (closed Mondays)
+Booking: Walk-in friendly, no reservations
+Tips:
+- Start upstairs to see the Stevenson manuscripts before crowds arrive
+- Ask the docent about evening storytelling sessions
 
-JSON schema to follow:
-
-{{
-  "intro": "Same intro text as above",
-  "sections": [
-    {{
-      "title": "Section Name",
-      "items": [
-        {{
-          "name": "Place/Restaurant/Experience Name",
-          "description": "2-3 sentence description that captures what makes this place special and why travelers should visit",
-          "details": {{
-            "location": "Full address or specific neighborhood/district",
-            "price": "Price range with context (e.g., €€€ - $50-80 per person)",
-            "hours": "Opening hours or best time to visit",
-            "booking": "Reservation requirements or how to book",
-            "tips": ["Insider tip 1", "Insider tip 2", "Insider tip 3"]
-          }}
-        }}
-      ]
-    }}
-  ]
-}}
+Section: Traditional Folk Venues
+--- Save This ---
+Name: Sandy Bell's
+Description: ...
 
 Requirements:
-- Create 1-2 sections maximum
-- Include 3-6 items per section (each item = ONE specific place/restaurant/experience)
-- Each item MUST have a name and description
-- Include as many detail fields as relevant (skip if not applicable)
-- Be specific: real names, actual addresses, current prices
-- Tips should be insider knowledge tourists wouldn't know
-- NO markdown formatting, NO bullets - plain JSON only
-- Validate JSON structure before responding
-
-Example for "Best restaurants in Rome":
-{{
-  "intro": "Rome's dining scene blends centuries-old tradition with modern creativity—here are standout restaurants worth a dedicated visit.",
-  "sections": [
-    {{
-      "title": "Best Restaurants in Rome",
-      "items": [
-        {{
-          "name": "Roscioli",
-          "description": "Historic salumeria turned restaurant in the Campo de' Fiori area. Known for exceptional cacio e pepe and an extensive wine cellar with over 3,000 bottles. Family-run since 1824.",
-          "details": {{
-            "location": "Via dei Giubbonari 21, Campo de' Fiori",
-            "price": "€€€ - $40-60 per person",
-            "hours": "12:30-4:00 PM, 7:00-11:30 PM (closed Sundays)",
-            "booking": "Reserve 2-3 weeks ahead via phone +39 06 687 5287",
-            "tips": ["Sit at the deli counter for best service", "Try the carbonara - it's their secret specialty", "Wine pairings are exceptional"]
-          }}
-        }}
-      ]
-    }}
-  ]
-}}
-
-Make your response helpful, specific, and actionable."""
+- Use vivid, specific language—no generic filler.
+- Include 1-2 sections total and 3-6 recommendations overall (each delimiter block = one recommendation).
+- Every recommendation must include at least Name and Description.
+- Ensure facts are up-to-date: real venues, current prices, insider guidance.
+- Absolutely no markdown bullets except inside the Tips list and never output code fences."""
 
     key = api_key or _require_gemini_api_key()
 
