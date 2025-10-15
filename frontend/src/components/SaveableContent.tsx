@@ -147,32 +147,18 @@ export function SaveableContent({
 
 
   const isHighlighted = isHovered || showButtons || saved || isFocused;
-  const containerRing = isHighlighted
-    ? "ring-2 ring-primary/40 shadow-lg"
-    : "ring-1 ring-border/50 shadow-sm hover:ring-primary/25";
-
   return (
     <div
       tabIndex={0}
-      className={`saveable-content relative rounded-2xl px-2 sm:px-3 py-2 pr-12 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
+      className={`saveable-content relative rounded-2xl border px-3 sm:px-4 py-3 pr-12 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
         isMobile ? 'cursor-pointer' : 'cursor-default'
-      } ${containerRing}`}
+      } ${isHighlighted ? 'border-primary/40 bg-primary/5 shadow-md' : 'border-border/60 bg-card shadow-sm hover:border-primary/30'}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleTap}
       onFocus={handleFocus}
       onBlur={handleBlur}
     >
-      <span
-        aria-hidden="true"
-        className={`pointer-events-none absolute inset-1 rounded-2xl transition duration-200 ease-out ${
-          isHighlighted ? 'opacity-100 scale-[0.995]' : 'opacity-0'
-        }`}
-        style={{
-          background: 'linear-gradient(135deg, rgba(255,237,200,0.35), rgba(255,255,255,0))'
-        }}
-      />
-
       <div className="relative z-10">
         {children}
       </div>
