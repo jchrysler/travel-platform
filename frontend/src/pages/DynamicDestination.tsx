@@ -868,7 +868,28 @@ export default function DynamicDestination() {
       sectionTitles
     );
 
-    const url = `${window.location.origin}/explore/${destinationSlug}/${guide.slug}?shared=1`;
+    const backendSections = completedSearchUnits.map((unit, index) => ({
+      title: sectionTitles[index],
+      body: (unit.response || '').trim(),
+      query: unit.query,
+      rawResponse: unit.response || '',
+    })).filter(section => section.body.length > 0);
+
+    void submitGuideToBackend(shareTitle, description, backendSections);
+
+    const sharePayload = {
+      destinationName,
+      destinationSlug,
+      title: shareTitle,
+      description,
+      queries,
+      responses,
+      sectionTitles,
+    };
+
+    const encoded = encodeURIComponent(JSON.stringify(sharePayload));
+
+    const url = `${window.location.origin}/explore/${destinationSlug}/${guide.slug}?shared=1&data=${encoded}`;
     try {
       await navigator.clipboard.writeText(url);
     } catch (err) {

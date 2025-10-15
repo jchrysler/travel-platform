@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Eye, Trash2, Edit, Check, X, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,6 +27,7 @@ interface SearchUnitData {
 
 export default function DestinationGuide() {
   const { destination, guide: guideSlug } = useParams<{ destination: string; guide: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const destinationName = destination ? deslugify(destination) : "";
 
@@ -39,34 +40,77 @@ export default function DestinationGuide() {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState("");
   const [isCopied, setIsCopied] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   useEffect(() => {
-    if (destination && guideSlug) {
-      const loadedGuide = getGuide(destination, guideSlug);
-      if (loadedGuide) {
-        setGuide(loadedGuide);
-        setEditedTitle(loadedGuide.title);
-        setEditedDescription(loadedGuide.description || "");
-
-        // Convert guide data to search units with refined titles
-        const units: SearchUnitData[] = loadedGuide.queries.map((query, index) => ({
-          id: `guide-${loadedGuide.id}-${index}`,
-          query,
-          response: loadedGuide.responses[index] || "",
-          timestamp: new Date(loadedGuide.createdAt),
-          isStreaming: false,
-          refinedTitle: loadedGuide.sectionTitles?.[index] || refineQueryToTitle(query, destinationName)
-        }));
-        setSearchUnits(units);
-
-        // Track view
-        incrementGuideViews(loadedGuide.id);
-      } else {
-        // Guide not found, redirect to destination page
-        navigate(`/explore/${destination}`);
-      }
+    if (!destination || !guideSlug) {
+      return;
     }
-  }, [destination, guideSlug, navigate]);
+
+    const loadedGuide = getGuide(destination, guideSlug);
+
+    if (loadedGuide) {
+      setGuide(loadedGuide);
+      setEditedTitle(loadedGuide.title);
+      setEditedDescription(loadedGuide.description || "");
+      setIsReadOnly(false);
+
+      const units: SearchUnitData[] = loadedGuide.queries.map((query, index) => ({
+        id: `guide-${loadedGuide.id}-${index}`,
+        query,
+        response: loadedGuide.responses[index] || "",
+        timestamp: new Date(loadedGuide.createdAt),
+        isStreaming: false,
+        refinedTitle: loadedGuide.sectionTitles?.[index] || refineQueryToTitle(query, destinationName)
+      }));
+      setSearchUnits(units);
+      incrementGuideViews(loadedGuide.id);
+      return;
+    }
+
+    const encoded = searchParams.get("data");
+    if (!encoded) {
+      navigate(`/explore/${destination}`);
+      return;
+    }
+
+    try {
+      const decoded = JSON.parse(decodeURIComponent(encoded));
+      const virtualGuide: Guide = {
+        id: `shared-${guideSlug}`,
+        destination: decoded.destinationName || destinationName,
+        destinationSlug: decoded.destinationSlug || destination,
+        slug: guideSlug,
+        title: decoded.title || `Shared guide for ${destinationName}`,
+        subtitle: decoded.description,
+        description: decoded.description,
+        queries: decoded.queries || [],
+        responses: decoded.responses || [],
+        sectionTitles: decoded.sectionTitles || [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        views: 0,
+      };
+
+      setGuide(virtualGuide);
+      setEditedTitle(virtualGuide.title);
+      setEditedDescription(virtualGuide.description || "");
+      setIsReadOnly(true);
+
+      const units: SearchUnitData[] = virtualGuide.queries.map((query, index) => ({
+        id: `shared-${index}`,
+        query,
+        response: virtualGuide.responses[index] || "",
+        timestamp: new Date(),
+        isStreaming: false,
+        refinedTitle: virtualGuide.sectionTitles?.[index] || refineQueryToTitle(query, destinationName)
+      }));
+      setSearchUnits(units);
+    } catch (err) {
+      console.error("Failed to decode shared guide", err);
+      navigate(`/explore/${destination}`);
+    }
+  }, [destination, guideSlug, navigate, searchParams, destinationName]);
 
   const handleSaveItem = (item: SavedItem) => {
     setSavedItems(prev => [item, ...prev]);
@@ -88,7 +132,8 @@ export default function DestinationGuide() {
   };
 
   const handleDeleteGuide = () => {
-    if (guide && confirm(`Are you sure you want to delete "${guide.title}"?`)) {
+    if (!guide || isReadOnly) return;
+    if (confirm(`Are you sure you want to delete "${guide.title}"?`)) {
       deleteGuide(guide.id);
       navigate(`/explore/${destination}`);
     }
@@ -117,7 +162,11 @@ export default function DestinationGuide() {
 
 
   const handleSaveTitle = () => {
-    if (guide && editedTitle.trim() && editedTitle !== guide.title) {
+    if (isReadOnly || !guide) {
+      setIsEditingTitle(false);
+      return;
+    }
+    if (editedTitle.trim() && editedTitle !== guide.title) {
       // Update guide in localStorage
       const guides = JSON.parse(localStorage.getItem('travel_guides') || '[]');
       const guideIndex = guides.findIndex((g: Guide) => g.id === guide.id);
@@ -132,7 +181,11 @@ export default function DestinationGuide() {
   };
 
   const handleSaveDescription = () => {
-    if (guide && editedDescription !== guide.description) {
+    if (isReadOnly || !guide) {
+      setIsEditingDescription(false);
+      return;
+    }
+    if (editedDescription !== guide.description) {
       // Update guide in localStorage
       const guides = JSON.parse(localStorage.getItem('travel_guides') || '[]');
       const guideIndex = guides.findIndex((g: Guide) => g.id === guide.id);
@@ -195,14 +248,16 @@ export default function DestinationGuide() {
           ) : (
             <div className="flex items-center gap-3 group">
               <h1 className="text-4xl font-bold">{guide.title}</h1>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => setIsEditingTitle(true)}
-              >
-                <Edit className="w-4 h-4" />
-              </Button>
+              {!isReadOnly && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => setIsEditingTitle(true)}
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -243,23 +298,27 @@ export default function DestinationGuide() {
             {guide.description ? (
               <div className="flex items-center gap-2">
                 <p className="text-muted-foreground">{guide.description}</p>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
-                  onClick={() => setIsEditingDescription(true)}
-                >
-                  <Edit className="w-3 h-3" />
-                </Button>
+                {!isReadOnly && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
+                    onClick={() => setIsEditingDescription(true)}
+                  >
+                    <Edit className="w-3 h-3" />
+                  </Button>
+                )}
               </div>
             ) : (
-              <Button
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => setIsEditingDescription(true)}
-              >
-                + Add description
-              </Button>
+              !isReadOnly && (
+                <Button
+                  variant="ghost"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => setIsEditingDescription(true)}
+                >
+                  + Add description
+                </Button>
+              )
             )}
           </div>
         )}
@@ -290,14 +349,16 @@ export default function DestinationGuide() {
                 <><Share2 className="w-4 h-4 mr-2" /> Share</>
               )}
             </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={handleDeleteGuide}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
-            </Button>
+            {!isReadOnly && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleDeleteGuide}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </Button>
+            )}
           </div>
         </div>
       </div>
