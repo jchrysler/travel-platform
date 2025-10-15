@@ -54,7 +54,7 @@ interface ItemDetail {
 
 interface RecommendationItem {
   name: string;
-  description: string;
+  description?: string;
   details?: ItemDetail;
 }
 
@@ -68,10 +68,10 @@ interface StructuredResponse {
   sections: ContentSection[];
 }
 
-interface ParsedDelimitedResponse {
+interface ParsedMarkdownResponse {
   intro: string;
   sections: ContentSection[];
-  foundDelimiter: boolean;
+  hasItemHeadings: boolean;
   hasPartialItem: boolean;
 }
 
@@ -111,10 +111,10 @@ const tryParseJSON = (content: string): StructuredResponse | null => {
   return null;
 };
 
-const parseDelimitedResponse = (
+const parseMarkdownRecommendations = (
   content: string,
   isStreaming: boolean
-): ParsedDelimitedResponse | null => {
+): ParsedMarkdownResponse | null => {
   const cleaned = stripCodeFenceLines(content);
   if (!cleaned.trim()) {
     return null;
@@ -130,7 +130,8 @@ const parseDelimitedResponse = (
   let currentItem: RecommendationItem | null = null;
   let collectingTips = false;
   let tipBuffer: string[] = [];
-  let foundDelimiter = false;
+  let descriptionBuffer: string[] = [];
+  let hasItemHeadings = false;
 
   const ensureSection = () => {
     if (!currentSection || !currentSection.trim()) {
@@ -142,7 +143,7 @@ const parseDelimitedResponse = (
     }
   };
 
-  const assignDetail = (label: string, value: string) => {
+  const assignDetail = (label: keyof ItemDetail, value: string) => {
     if (!currentItem) return;
     if (!currentItem.details) {
       currentItem.details = {};
@@ -150,8 +151,28 @@ const parseDelimitedResponse = (
     currentItem.details[label] = value;
   };
 
+  const flushDescriptionBuffer = () => {
+    if (!currentItem) return;
+    if (descriptionBuffer.length === 0) {
+      return;
+    }
+    const combined = descriptionBuffer.join(" ").trim();
+    if (combined.length === 0) {
+      descriptionBuffer = [];
+      return;
+    }
+    if (currentItem.description && currentItem.description.length > 0) {
+      currentItem.description = `${currentItem.description} ${combined}`.trim();
+    } else {
+      currentItem.description = combined;
+    }
+    descriptionBuffer = [];
+  };
+
   const finalizeCurrentItem = () => {
     if (!currentItem) return;
+
+    flushDescriptionBuffer();
 
     if (tipBuffer.length > 0) {
       if (!currentItem.details) {
@@ -176,17 +197,21 @@ const parseDelimitedResponse = (
         });
 
         if (entries.length > 0) {
-          currentItem.details = Object.fromEntries(entries);
+          currentItem.details = Object.fromEntries(entries) as ItemDetail;
         } else {
           delete currentItem.details;
         }
       }
+
+      const trimmedDescription = (currentItem.description ?? "").trim();
+      currentItem.description = trimmedDescription.length > 0 ? trimmedDescription : undefined;
 
       sectionsMap.get(currentSection!)?.push(currentItem);
     }
 
     currentItem = null;
     tipBuffer = [];
+    descriptionBuffer = [];
     collectingTips = false;
   };
 
@@ -196,37 +221,89 @@ const parseDelimitedResponse = (
 
     if (!trimmed) {
       collectingTips = false;
+      flushDescriptionBuffer();
       continue;
     }
 
-    if (/^---\s*save this\s*---$/i.test(trimmed)) {
-      foundDelimiter = true;
+    if (/^##\s+/.test(trimmed)) {
       if (currentItem) {
         finalizeCurrentItem();
       }
-      ensureSection();
-      currentItem = { name: "", description: "" };
-      collectingTips = false;
-      tipBuffer = [];
-      continue;
-    }
-
-    const sectionMatch = trimmed.match(/^Section:\s*(.+)$/i);
-    if (sectionMatch) {
-      if (currentItem) {
-        finalizeCurrentItem();
-      }
-      currentSection = normalizeWhitespace(sectionMatch[1]);
+      currentSection = trimmed.replace(/^##\s+/, "").trim();
       if (!currentSection) {
         currentSection = "Highlights";
       }
+      if (!sectionsMap.has(currentSection)) {
+        sectionsMap.set(currentSection, []);
+        sectionsOrder.push(currentSection);
+      }
+      collectingTips = false;
+      continue;
+    }
+
+    if (/^###\s+/.test(trimmed)) {
+      hasItemHeadings = true;
+      if (currentItem) {
+        finalizeCurrentItem();
+      }
       ensureSection();
+      currentItem = {
+        name: trimmed.replace(/^###\s+/, "").trim()
+      };
+      tipBuffer = [];
+      descriptionBuffer = [];
       collectingTips = false;
       continue;
     }
 
     if (!currentItem) {
       introLines.push(line);
+      continue;
+    }
+
+    const detailMatch = line.match(/^\*\*(.+?):\*\*\s*(.*)$/);
+    if (detailMatch) {
+      const rawLabel = detailMatch[1].trim().toLowerCase();
+      const value = detailMatch[2].trim();
+      collectingTips = false;
+      flushDescriptionBuffer();
+
+      if (rawLabel === "description") {
+        if (value.length > 0) {
+          currentItem.description = value;
+        }
+        continue;
+      }
+
+      if (rawLabel === "location") {
+        assignDetail("location", value);
+        continue;
+      }
+
+      if (rawLabel === "price") {
+        assignDetail("price", value);
+        continue;
+      }
+
+      if (rawLabel === "hours") {
+        assignDetail("hours", value);
+        continue;
+      }
+
+      if (rawLabel === "booking") {
+        assignDetail("booking", value);
+        continue;
+      }
+
+      if (rawLabel === "tips") {
+        collectingTips = true;
+        if (value.length > 0) {
+          tipBuffer.push(value.replace(/^[-•]\s*/, "").trim());
+        }
+        continue;
+      }
+
+      assignDetail(rawLabel as keyof ItemDetail, value);
       continue;
     }
 
@@ -238,52 +315,12 @@ const parseDelimitedResponse = (
       continue;
     }
 
-    const keyValueMatch = line.match(/^([A-Za-z ]+):\s*(.*)$/);
-    if (keyValueMatch) {
-      const rawKey = keyValueMatch[1].trim();
-      const value = keyValueMatch[2].trim();
-      const key = rawKey.toLowerCase();
-
-      collectingTips = false;
-
-      if (key === "name") {
-        currentItem.name = value;
-      } else if (key === "description") {
-        currentItem.description = value;
-      } else if (key === "location") {
-        assignDetail("location", value);
-      } else if (key === "price") {
-        assignDetail("price", value);
-      } else if (key === "hours") {
-        assignDetail("hours", value);
-      } else if (key === "booking") {
-        assignDetail("booking", value);
-      } else if (key === "tips") {
-        collectingTips = true;
-        if (value.length > 0) {
-          tipBuffer.push(value);
-        }
-      } else {
-        assignDetail(rawKey, value);
-      }
-
+    if (collectingTips && tipBuffer.length > 0) {
+      tipBuffer[tipBuffer.length - 1] = `${tipBuffer[tipBuffer.length - 1]} ${trimmed}`.trim();
       continue;
     }
 
-    if (collectingTips) {
-      tipBuffer.push(trimmed);
-      continue;
-    }
-
-    // Treat any other line as a continuation of the description
-    const continuation = trimmed;
-    if (continuation.length > 0) {
-      if (currentItem.description && currentItem.description.length > 0) {
-        currentItem.description = `${currentItem.description} ${continuation}`;
-      } else {
-        currentItem.description = continuation;
-      }
-    }
+    descriptionBuffer.push(trimmed);
   }
 
   const hasPartialItem = Boolean(currentItem);
@@ -302,7 +339,7 @@ const parseDelimitedResponse = (
   return {
     intro,
     sections,
-    foundDelimiter,
+    hasItemHeadings,
     hasPartialItem
   };
 };
@@ -370,9 +407,11 @@ export function SearchUnit({
                 </div>
 
                 {/* Item description */}
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {item.description}
-                </p>
+                {item.description && (
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {item.description}
+                  </p>
+                )}
 
                 {/* Item details */}
                 {item.details && (
@@ -474,28 +513,40 @@ export function SearchUnit({
       return elements;
     }
 
-    const parsed = parseDelimitedResponse(content, Boolean(unit.isStreaming));
+    const parsed = parseMarkdownRecommendations(content, Boolean(unit.isStreaming));
 
     if (parsed) {
-      const { intro, sections, foundDelimiter, hasPartialItem } = parsed;
-
-      if (intro.length > 0) {
-        elements.push(
-          <div key="intro" className="mb-4 text-base leading-relaxed text-muted-foreground">
-            {intro}
-          </div>
-        );
-      }
-
+      const { intro, sections, hasItemHeadings, hasPartialItem } = parsed;
       const hasItems = sections.some(section => section.items.length > 0);
 
       if (hasItems) {
+        if (intro.length > 0) {
+          elements.push(
+            <div key="intro" className="mb-4 text-base leading-relaxed text-muted-foreground">
+              {intro}
+            </div>
+          );
+        }
+
         elements.push(...renderStructuredContent({ intro, sections }));
         return elements;
       }
 
-      if (unit.isStreaming || foundDelimiter || hasPartialItem || intro.length > 0) {
-        return elements;
+      if (unit.isStreaming) {
+        if (intro.length > 0) {
+          return [
+            <div key="intro-streaming" className="mb-4 text-base leading-relaxed text-muted-foreground">
+              {intro}
+            </div>
+          ];
+        }
+
+        if (hasItemHeadings || hasPartialItem) {
+          return [];
+        }
+      } else if (intro.length > 0 && !hasItemHeadings && !hasPartialItem) {
+        // Completed stream but only intro prose; fall back to markdown renderer
+        return renderMarkdownContent(content);
       }
     }
 

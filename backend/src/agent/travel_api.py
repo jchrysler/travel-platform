@@ -417,46 +417,35 @@ async def explore_destination(
 
 Answer this travel query: "{query}"
 
-CRITICAL FORMAT (stream exactly like this):
-1. Start with 1-2 sentences of engaging intro text. This must be plain text with no bullets or code fences.
-2. For each thematic grouping, output a line beginning with "Section: " followed by the section title.
-3. For every individual recommendation, output a delimiter line of exactly "--- Save This ---" and then list key-value pairs on separate lines.
-   Required keys (omit a line if the detail is unknown):
-     - Name: {place or experience}
-     - Description: 2-3 sentence highlight
-     - Location: specific neighborhood or address
-     - Price: realistic range with context
-     - Hours: best visiting window or opening hours
-     - Booking: reservation guidance
-     - Tips: (write "Tips:" on one line, then include 1-3 bullet lines prefixed with "-")
-4. Leave a blank line between sections. Do NOT return JSON, markdown tables, numbered lists, or code fences.
+CRITICAL FORMAT (stream-friendly markdown):
+1. Begin with 1-2 sentences of engaging intro text (plain prose).
+2. Organize recommendations into 1-2 thematic sections using markdown headings (`## Section Title`).
+3. Inside each section, list 3-6 individual recommendations using markdown subheadings (`### Place or Experience Name`).
+4. Under each subheading, provide detail lines using bold labels followed by text (e.g., `**Description:** 2-3 sentences`, `**Location:**`, `**Price:**`, `**Hours:**`, `**Booking:**`). If a detail is unknown, omit the line entirely.
+5. Include insider guidance as a short bullet list under `**Tips:**` using standard markdown bullets (`-`).
+6. Do NOT use code fences, tables, numbered lists, or JSON. The response must remain valid markdown that reads naturally even without custom parsing.
 
 Example format:
 Edinburgh's pub scene blends literary lore with nightly folk sessions—here's a crawl locals actually love.
 
-Section: Literary Pubs
---- Save This ---
-Name: The Writer's Museum
-Description: Housed in Lady Stair's Close, this intimate museum celebrates Robert Burns, Sir Walter Scott, and Robert Louis Stevenson. Pause in the courtyard for a quiet dram before heading out.
-Location: Lawnmarket, Old Town
-Price: Free entry, donations appreciated
-Hours: 10:00 AM - 5:00 PM (closed Mondays)
-Booking: Walk-in friendly, no reservations
-Tips:
-- Start upstairs to see the Stevenson manuscripts before crowds arrive
+## Literary Pubs
+### The Writer's Museum
+**Description:** Housed in Lady Stair's Close, this intimate museum celebrates Burns, Scott, and Stevenson—perfect for a pre-crawl history fix.
+**Location:** Lawnmarket, Old Town
+**Hours:** 10:00 AM – 5:00 PM (closed Mondays)
+**Booking:** Walk-in friendly, donations appreciated
+**Tips:**
+- Start upstairs to see Stevenson's manuscripts before tour groups arrive
 - Ask the docent about evening storytelling sessions
 
-Section: Traditional Folk Venues
---- Save This ---
-Name: Sandy Bell's
-Description: ...
+### Sandy Bell's
+**Description:** ...
 
 Requirements:
-- Use vivid, specific language—no generic filler.
-- Include 1-2 sections total and 3-6 recommendations overall (each delimiter block = one recommendation).
-- Every recommendation must include at least Name and Description.
-- Ensure facts are up-to-date: real venues, current prices, insider guidance.
-- Absolutely no markdown bullets except inside the Tips list and never output code fences."""
+- Use vivid, specific language—no filler.
+- Provide realistic prices, addresses, and booking advice wherever relevant.
+- Ensure insider tips feel actionable and local.
+- Keep formatting consistent so each recommendation is clearly separated by its `###` heading."""
 
     key = api_key or _require_gemini_api_key()
 
