@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, Sparkles, MapPin, BookOpen, Save, PanelRightOpen, X } from "lucide-react";
+import { ArrowLeft, Search, Sparkles, MapPin, BookOpen, Save, PanelRightOpen, X, Share2, ExternalLink, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -121,6 +121,7 @@ export default function DynamicDestination() {
   const [hasUserSearched, setHasUserSearched] = useState(false);
   const [ghostPromptIndex, setGhostPromptIndex] = useState(0);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [shareLink, setShareLink] = useState<string | null>(null);
 
   const heroContent = getDestinationHeroContent(destination ?? "");
   const readableDestination = destinationName || "this destination";
@@ -492,6 +493,17 @@ export default function DynamicDestination() {
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
+  useEffect(() => {
+    if (!shareLink) return;
+    const timeout = setTimeout(() => setShareLink(null), 6000);
+    return () => clearTimeout(timeout);
+  }, [shareLink]);
+
+  const completedSearchUnits = useMemo(
+    () => searchUnits.filter(unit => !unit.isStreaming && (unit.response?.trim().length ?? 0) > 0),
+    [searchUnits]
+  );
+
   const handleCustomSearch = async () => {
     if (!customQuery.trim() || !destination) return;
     await performSearch(customQuery);
@@ -818,6 +830,51 @@ export default function DynamicDestination() {
 
     // Navigate to the new guide
       navigate(`/explore/${destinationSlug}/${guide.slug}`);
+  };
+
+  const handleShareSession = async () => {
+    if (completedSearchUnits.length === 0) {
+      window.alert("Run a search and wait for results to finish before sharing.");
+      return;
+    }
+
+    const firstUnit = completedSearchUnits[0];
+    const primaryTitle = refinedTitles.get(firstUnit.id) || refineQueryToTitle(firstUnit.query, destinationName);
+    const timestamp = new Date();
+    const formattedTimestamp = timestamp.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    });
+
+    const shareTitle = primaryTitle
+      ? `${primaryTitle} · ${destinationName}`
+      : `${destinationName} highlights · ${formattedTimestamp}`;
+    const description = `Captured ${formattedTimestamp}`;
+
+    const queries = completedSearchUnits.map(unit => unit.query);
+    const responses = completedSearchUnits.map(unit => unit.response || "");
+    const sectionTitles = completedSearchUnits.map(unit =>
+      refinedTitles.get(unit.id) || refineQueryToTitle(unit.query, destinationName)
+    );
+
+    const guide = saveGuide(
+      destinationName,
+      shareTitle,
+      queries,
+      responses,
+      description,
+      sectionTitles
+    );
+
+    const url = `${window.location.origin}/explore/${destinationSlug}/${guide.slug}?shared=1`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch (err) {
+      console.warn("Unable to copy share link", err);
+    }
+    setShareLink(url);
   };
 
   return (
@@ -1171,17 +1228,70 @@ export default function DynamicDestination() {
         destinationSlug={destinationSlug}
       />
 
-      {/* Floating Save Guide Button */}
-      {savedItems.length > 0 && (
-        <div className="fixed bottom-6 right-6 z-50">
+      {/* Share Toast */}
+      {shareLink && (
+        <div className="fixed bottom-28 right-6 z-50 max-w-sm rounded-xl border border-border/60 bg-background/95 p-4 shadow-xl">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Share2 className="h-4 w-4" />
+            Link ready to share
+          </div>
+          <div className="mt-2 line-clamp-2 break-words text-xs text-muted-foreground">
+            {shareLink}
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => window.open(shareLink, "_blank")}
+            >
+              <ExternalLink className="mr-1 h-3.5 w-3.5" />
+              Open
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                navigator.clipboard.writeText(shareLink).catch(() => null);
+              }}
+            >
+              <Copy className="mr-1 h-3.5 w-3.5" />
+              Copy again
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setShareLink(null)}
+              className="h-8 w-8"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Actions */}
+      {(completedSearchUnits.length > 0 || savedItems.length > 0) && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 sm:flex-row">
           <Button
             size="lg"
+            variant="secondary"
             className="shadow-lg"
-            onClick={() => setShowSaveGuide(true)}
+            onClick={handleShareSession}
+            disabled={completedSearchUnits.length === 0}
           >
-            <Save className="w-5 h-5 mr-2" />
-            Save Guide {savedItems.length > 0 && `(${savedItems.length})`}
+            <Share2 className="mr-2 h-5 w-5" />
+            Share Page {completedSearchUnits.length > 0 && `(${completedSearchUnits.length})`}
           </Button>
+          {savedItems.length > 0 && (
+            <Button
+              size="lg"
+              className="shadow-lg"
+              onClick={() => setShowSaveGuide(true)}
+            >
+              <Save className="mr-2 h-5 w-5" />
+              Save Guide ({savedItems.length})
+            </Button>
+          )}
         </div>
       )}
 
