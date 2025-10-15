@@ -1,4 +1,4 @@
-import { useState, ReactNode, useEffect } from "react";
+import { useState, ReactNode, useEffect, useRef } from "react";
 import { Plus, Check, MessageCircle, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -36,6 +36,7 @@ export function SaveableContent({
   const [saved, setSaved] = useState(isSaved);
   const [isMobile, setIsMobile] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const hasShownInitialRef = useRef(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -49,6 +50,20 @@ export function SaveableContent({
   useEffect(() => {
     setSaved(isSaved);
   }, [isSaved]);
+
+  useEffect(() => {
+    if (!hasShownInitialRef.current && !saved) {
+      hasShownInitialRef.current = true;
+      if (!isMobile) {
+        setShowButtons(true);
+        const timeout = setTimeout(() => {
+          setShowButtons(false);
+        }, 2200);
+        return () => clearTimeout(timeout);
+      }
+    }
+    return;
+  }, [isMobile, saved]);
 
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -129,12 +144,12 @@ export function SaveableContent({
 
 
   const isHighlighted = isHovered || showButtons || saved || isFocused;
-  const highlightColor = "rgba(255, 247, 210, 0.55)";
+  const highlightColor = "rgba(255, 244, 214, 0.65)";
 
   return (
     <div
       tabIndex={0}
-      className={`saveable-content relative rounded-sm py-1 pl-1 pr-8 sm:pr-10 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
+      className={`saveable-content relative rounded-2xl px-2 sm:px-3 py-2 pr-12 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
         isMobile ? 'cursor-pointer' : 'cursor-default'
       }`}
       onMouseEnter={handleMouseEnter}
@@ -145,7 +160,7 @@ export function SaveableContent({
     >
       <span
         aria-hidden="true"
-        className={`pointer-events-none absolute inset-0 rounded-[4px] transition-opacity duration-150 ${
+        className={`pointer-events-none absolute inset-0 rounded-2xl transition-opacity duration-150 ${
           isHighlighted ? 'opacity-100' : 'opacity-0'
         }`}
         style={{ backgroundColor: highlightColor }}
@@ -166,17 +181,17 @@ export function SaveableContent({
           <Button
             size="icon"
             variant="ghost"
-            className={`h-8 w-8 rounded-full border border-border/60 bg-background/95 shadow-sm transition-colors duration-200 ${
-              saved ? 'text-emerald-600 hover:text-emerald-700' : 'text-muted-foreground hover:text-primary'
+            className={`h-9 w-9 rounded-full border border-border/60 bg-background/95 shadow-md transition-colors duration-300 ${
+              saved ? 'text-emerald-600 hover:text-emerald-700' : 'text-primary hover:text-primary-foreground hover:bg-primary'
             }`}
             onClick={handleSave}
             disabled={saved}
             aria-label={saved ? "Saved section" : "Save this section"}
           >
             {saved ? (
-              <Check className="h-4 w-4" />
+              <Check className="h-5 w-5" />
             ) : (
-              <Plus className="h-4 w-4" />
+              <Plus className="h-5 w-5" />
             )}
           </Button>
 

@@ -48,6 +48,8 @@ interface ItemDetail {
   price?: string;
   hours?: string;
   booking?: string;
+  reviewsSummary?: string;
+  reviewsHighlights?: string[];
   tips?: string[];
   [key: string]: any;
 }
@@ -128,8 +130,11 @@ const parseMarkdownRecommendations = (
 
   let currentSection: string | null = null;
   let currentItem: RecommendationItem | null = null;
-  let collectingTips = false;
-  let tipBuffer: string[] = [];
+  const bulletBuffers = {
+    tips: [] as string[],
+    reviewsHighlights: [] as string[],
+  };
+  let currentBulletKey: keyof typeof bulletBuffers | null = null;
   let descriptionBuffer: string[] = [];
   let hasItemHeadings = false;
 
@@ -143,7 +148,7 @@ const parseMarkdownRecommendations = (
     }
   };
 
-  const assignDetail = (label: keyof ItemDetail, value: string) => {
+  const assignDetail = (label: keyof ItemDetail | string, value: string) => {
     if (!currentItem) return;
     if (!currentItem.details) {
       currentItem.details = {};
@@ -174,11 +179,18 @@ const parseMarkdownRecommendations = (
 
     flushDescriptionBuffer();
 
-    if (tipBuffer.length > 0) {
+    if (bulletBuffers.reviewsHighlights.length > 0) {
       if (!currentItem.details) {
         currentItem.details = {};
       }
-      currentItem.details.tips = tipBuffer.slice();
+      currentItem.details.reviewsHighlights = [...bulletBuffers.reviewsHighlights];
+    }
+
+    if (bulletBuffers.tips.length > 0) {
+      if (!currentItem.details) {
+        currentItem.details = {};
+      }
+      currentItem.details.tips = [...bulletBuffers.tips];
     }
 
     const hasCore = Boolean(
@@ -210,9 +222,10 @@ const parseMarkdownRecommendations = (
     }
 
     currentItem = null;
-    tipBuffer = [];
+    bulletBuffers.tips = [];
+    bulletBuffers.reviewsHighlights = [];
     descriptionBuffer = [];
-    collectingTips = false;
+    currentBulletKey = null;
   };
 
   for (const rawLine of lines) {
@@ -220,7 +233,7 @@ const parseMarkdownRecommendations = (
     const trimmed = line.trim();
 
     if (!trimmed) {
-      collectingTips = false;
+      currentBulletKey = null;
       flushDescriptionBuffer();
       continue;
     }
@@ -237,7 +250,7 @@ const parseMarkdownRecommendations = (
         sectionsMap.set(currentSection, []);
         sectionsOrder.push(currentSection);
       }
-      collectingTips = false;
+      currentBulletKey = null;
       continue;
     }
 
@@ -250,9 +263,10 @@ const parseMarkdownRecommendations = (
       currentItem = {
         name: trimmed.replace(/^###\s+/, "").trim()
       };
-      tipBuffer = [];
+      bulletBuffers.tips = [];
+      bulletBuffers.reviewsHighlights = [];
       descriptionBuffer = [];
-      collectingTips = false;
+      currentBulletKey = null;
       continue;
     }
 
@@ -265,7 +279,7 @@ const parseMarkdownRecommendations = (
     if (detailMatch) {
       const rawLabel = detailMatch[1].trim().toLowerCase();
       const value = detailMatch[2].trim();
-      collectingTips = false;
+      currentBulletKey = null;
       flushDescriptionBuffer();
 
       if (rawLabel === "description") {
@@ -296,9 +310,28 @@ const parseMarkdownRecommendations = (
       }
 
       if (rawLabel === "tips") {
-        collectingTips = true;
+        currentBulletKey = "tips";
         if (value.length > 0) {
-          tipBuffer.push(value.replace(/^[-•]\s*/, "").trim());
+          const cleanedValue = value.replace(/^[-•]\s*/, "").trim();
+          if (cleanedValue.length > 0) {
+            bulletBuffers.tips.push(cleanedValue);
+          }
+        }
+        continue;
+      }
+
+      if (rawLabel === "reviews summary") {
+        assignDetail("reviewsSummary", value);
+        continue;
+      }
+
+      if (rawLabel === "reviews highlights") {
+        currentBulletKey = "reviewsHighlights";
+        if (value.length > 0) {
+          const cleanedValue = value.replace(/^[-•]\s*/, "").trim();
+          if (cleanedValue.length > 0) {
+            bulletBuffers.reviewsHighlights.push(cleanedValue);
+          }
         }
         continue;
       }
@@ -307,16 +340,17 @@ const parseMarkdownRecommendations = (
       continue;
     }
 
-    if (collectingTips && /^[-•]\s*(.+)$/.test(trimmed)) {
-      const tipText = trimmed.replace(/^[-•]\s*/, "").trim();
-      if (tipText.length > 0) {
-        tipBuffer.push(tipText);
+    if (currentBulletKey && /^[-•]\s*(.+)$/.test(trimmed)) {
+      const bulletText = trimmed.replace(/^[-•]\s*/, "").trim();
+      if (bulletText.length > 0) {
+        bulletBuffers[currentBulletKey].push(bulletText);
       }
       continue;
     }
 
-    if (collectingTips && tipBuffer.length > 0) {
-      tipBuffer[tipBuffer.length - 1] = `${tipBuffer[tipBuffer.length - 1]} ${trimmed}`.trim();
+    if (currentBulletKey && bulletBuffers[currentBulletKey].length > 0) {
+      const lastIndex = bulletBuffers[currentBulletKey].length - 1;
+      bulletBuffers[currentBulletKey][lastIndex] = `${bulletBuffers[currentBulletKey][lastIndex]} ${trimmed}`.trim();
       continue;
     }
 
@@ -379,7 +413,10 @@ export function SearchUnit({
       // Section title
       if (section.title) {
         elements.push(
-          <h3 key={`section-${sectionIndex}`} className="text-lg font-semibold mb-4 mt-6 first:mt-0 text-foreground">
+          <h3
+            key={`section-${sectionIndex}`}
+            className="text-xl font-semibold tracking-tight mb-4 mt-8 first:mt-2 text-foreground"
+          >
             {section.title}
           </h3>
         );
@@ -391,7 +428,10 @@ export function SearchUnit({
         const isSaved = savedItemIds.has(itemId);
 
         elements.push(
-          <div key={itemId} className="mb-6 last:mb-0">
+          <div
+            key={itemId}
+            className="mb-8 last:mb-0 transition-transform duration-300 ease-out hover:-translate-y-0.5"
+          >
             <SaveableContent
               content={JSON.stringify(item)}
               queryContext={unit.query}
@@ -400,57 +440,84 @@ export function SearchUnit({
               onElaborate={onElaborate ? () => onElaborate(JSON.stringify(item), unit.query, unit.id) : undefined}
               onMoreLike={onMoreLike ? () => onMoreLike(JSON.stringify(item), unit.query, unit.id) : undefined}
             >
-              <div className="space-y-3">
-                {/* Item name */}
-                <div className="text-base font-semibold text-foreground leading-snug">
-                  {item.name}
-                </div>
-
-                {/* Item description */}
-                {item.description && (
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {item.description}
-                  </p>
-                )}
-
-                {/* Item details */}
-                {item.details && (
-                  <div className="space-y-1.5 text-sm">
-                    {item.details.location && (
-                      <div className="text-muted-foreground">
-                        <span className="font-medium text-foreground">Location:</span> {item.details.location}
-                      </div>
-                    )}
-                    {item.details.price && (
-                      <div className="text-muted-foreground">
-                        <span className="font-medium text-foreground">Price:</span> {item.details.price}
-                      </div>
-                    )}
-                    {item.details.hours && (
-                      <div className="text-muted-foreground">
-                        <span className="font-medium text-foreground">Hours:</span> {item.details.hours}
-                      </div>
-                    )}
-                    {item.details.booking && (
-                      <div className="text-muted-foreground">
-                        <span className="font-medium text-foreground">Booking:</span> {item.details.booking}
-                      </div>
-                    )}
-                    {item.details.tips && item.details.tips.length > 0 && (
-                      <div className="mt-2">
-                        <div className="font-medium text-foreground mb-1">Tips:</div>
-                        <ul className="space-y-1 text-muted-foreground">
-                          {item.details.tips.map((tip, tipIndex) => (
-                            <li key={`tip-${tipIndex}`} className="flex gap-2">
-                              <span className="text-primary">•</span>
-                              <span>{tip}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+              <div className="rounded-2xl border border-border/60 bg-card/95 p-5 sm:p-6 shadow-sm transition-all duration-300 hover:shadow-lg">
+                <div className="space-y-4">
+                  {/* Item name */}
+                  <div className="text-lg sm:text-xl font-semibold text-foreground leading-tight">
+                    {item.name}
                   </div>
-                )}
+
+                  {/* Item description */}
+                  {item.description && (
+                    <p className="text-base leading-relaxed text-muted-foreground">
+                      {item.description}
+                    </p>
+                  )}
+
+                  {/* Item details */}
+                  {item.details && (
+                    <div className="space-y-2 text-sm sm:text-base leading-relaxed">
+                      {item.details.location && (
+                        <div className="text-muted-foreground">
+                          <span className="font-medium text-foreground">Location:</span>{" "}
+                          {item.details.location}
+                        </div>
+                      )}
+                      {item.details.price && (
+                        <div className="text-muted-foreground">
+                          <span className="font-medium text-foreground">Price:</span>{" "}
+                          {item.details.price}
+                        </div>
+                      )}
+                      {item.details.hours && (
+                        <div className="text-muted-foreground">
+                          <span className="font-medium text-foreground">Hours:</span>{" "}
+                          {item.details.hours}
+                        </div>
+                      )}
+                      {item.details.booking && (
+                        <div className="text-muted-foreground">
+                          <span className="font-medium text-foreground">Booking:</span>{" "}
+                          {item.details.booking}
+                        </div>
+                      )}
+                      {item.details.reviewsSummary && (
+                        <div className="text-muted-foreground">
+                          <span className="font-medium text-foreground">Reviews:</span>{" "}
+                          {item.details.reviewsSummary}
+                        </div>
+                      )}
+                      {item.details.reviewsHighlights && item.details.reviewsHighlights.length > 0 && (
+                        <div className="pt-1">
+                          <div className="font-medium text-foreground mb-1">
+                            Review Highlights
+                          </div>
+                          <ul className="space-y-1.5 text-muted-foreground ml-4 list-disc marker:text-primary/80">
+                            {item.details.reviewsHighlights.map((highlight, highlightIndex) => (
+                              <li key={`highlight-${highlightIndex}`}>
+                                {highlight}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {item.details.tips && item.details.tips.length > 0 && (
+                        <div className="pt-1">
+                          <div className="font-medium text-foreground mb-1">
+                            Tips
+                          </div>
+                          <ul className="space-y-1.5 text-muted-foreground ml-4 list-disc marker:text-primary">
+                            {item.details.tips.map((tip, tipIndex) => (
+                              <li key={`tip-${tipIndex}`}>
+                                {tip}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </SaveableContent>
           </div>

@@ -421,9 +421,16 @@ CRITICAL FORMAT (stream-friendly markdown):
 1. Begin with 1-2 sentences of engaging intro text (plain prose).
 2. Organize recommendations into 1-2 thematic sections using markdown headings (`## Section Title`).
 3. Inside each section, list 3-6 individual recommendations using markdown subheadings (`### Place or Experience Name`).
-4. Under each subheading, provide detail lines using bold labels followed by text (e.g., `**Description:** 2-3 sentences`, `**Location:**`, `**Price:**`, `**Hours:**`, `**Booking:**`). If a detail is unknown, omit the line entirely.
-5. Include insider guidance as a short bullet list under `**Tips:**` using standard markdown bullets (`-`).
-6. Do NOT use code fences, tables, numbered lists, or JSON. The response must remain valid markdown that reads naturally even without custom parsing.
+4. Under each subheading, provide detail lines using bold labels followed by text. Required labels (omit a line entirely if the info is unknown):
+   - `**Description:**` → 2-3 sentence overview
+   - `**Location:**`
+   - `**Price:**`
+   - `**Hours:**`
+   - `**Booking:**`
+   - `**Reviews Summary:**` → concise synthesis of guest sentiment
+   - `**Reviews Highlights:**` → follow with 2-4 markdown bullets capturing notable quotes/themes
+   - `**Tips:**` → insider advice bullets (may reuse the same bullet list as highlights or provide distinct practical pointers)
+5. Do NOT use code fences, tables, numbered lists, or JSON. The response must remain valid markdown that reads naturally even without custom parsing.
 
 Example format:
 Edinburgh's pub scene blends literary lore with nightly folk sessions—here's a crawl locals actually love.
@@ -434,6 +441,10 @@ Edinburgh's pub scene blends literary lore with nightly folk sessions—here's a
 **Location:** Lawnmarket, Old Town
 **Hours:** 10:00 AM – 5:00 PM (closed Mondays)
 **Booking:** Walk-in friendly, donations appreciated
+**Reviews Summary:** Visitors love the intimate scale and storytelling exhibits, noting it feels like stepping into the authors' lives.
+**Reviews Highlights:**
+- “A hidden gem packed with Scottish literary history.”
+- “Docents weave in delightful anecdotes—don’t rush through.”
 **Tips:**
 - Start upstairs to see Stevenson's manuscripts before tour groups arrive
 - Ask the docent about evening storytelling sessions
