@@ -147,12 +147,27 @@ export function SaveableContent({
 
 
   const isHighlighted = isHovered || showButtons || saved || isFocused;
+  const containerClasses = [
+    "saveable-content",
+    "relative",
+    "rounded-2xl",
+    "px-3",
+    "sm:px-4",
+    "py-3",
+    "pr-12",
+    "transition-all",
+    "duration-200",
+    "focus-visible:outline-none",
+    "focus-visible:ring-2",
+    "focus-visible:ring-primary/30",
+    isMobile ? "cursor-pointer" : "cursor-default",
+    isHighlighted ? "bg-primary/5 shadow-lg ring-1 ring-primary/40" : "bg-card shadow-sm hover:shadow-md"
+  ].join(" ");
+
   return (
     <div
       tabIndex={0}
-      className={`saveable-content relative rounded-2xl border px-3 sm:px-4 py-3 pr-12 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
-        isMobile ? 'cursor-pointer' : 'cursor-default'
-      } ${isHighlighted ? 'border-primary/40 bg-primary/5 shadow-md' : 'border-border/60 bg-card shadow-sm hover:border-primary/30'}`}
+      className={containerClasses}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleTap}

@@ -593,7 +593,7 @@ export function SearchUnit({
               onElaborate={onElaborate ? handleToggleExpansion : undefined}
               onMoreLike={onMoreLike && snippet ? () => onMoreLike(snippet, unit.query, unit.id) : undefined}
             >
-              <div className="rounded-2xl border border-border/60 bg-card/95 p-5 sm:p-6 shadow-sm transition-all duration-300 hover:shadow-lg">
+              <div className="rounded-2xl bg-card/95 p-5 sm:p-6 transition-all duration-300">
                 <div className="space-y-4">
                   {/* Item name + rating */}
                   <div className="flex flex-wrap items-center gap-3">
