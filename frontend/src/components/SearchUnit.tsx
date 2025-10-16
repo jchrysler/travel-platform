@@ -841,16 +841,16 @@ export function SearchUnit({
   return (
     <div
       ref={unitRef}
-      className={`search-unit ${isLatest ? 'animate-slide-down' : ''}`}
+      className={`search-unit ${isLatest ? 'animate-slide-down' : ''} px-3 sm:px-0`}
     >
       {/* Main Content Unit */}
-      <Card className="relative overflow-hidden rounded-lg border border-border bg-card transition-all hover:border-primary/30 hover:shadow-lg">
+      <Card className="relative overflow-hidden rounded-2xl border border-border bg-card transition-all sm:rounded-2xl sm:border hover:border-primary/30 hover:shadow-lg">
         {unit.isStreaming && (
           <div className="absolute inset-x-0 top-0 h-1 bg-primary/20">
             <div className="h-full w-1/2 animate-pulse rounded-r-full bg-primary/60" />
           </div>
         )}
-        <div className="px-6 py-5">
+        <div className="px-4 py-5 sm:px-6">
           {/* Query Header */}
           <div className="mb-4">
             <div className="flex items-start justify-between gap-4">

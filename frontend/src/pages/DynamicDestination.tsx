@@ -920,7 +920,7 @@ export default function DynamicDestination() {
         <div className="relative z-10">
           <div
             className={cn(
-              "container mx-auto flex max-w-6xl flex-col justify-end gap-8 px-4 transition-all duration-500",
+              "container mx-auto flex max-w-6xl flex-col justify-end gap-8 px-3 sm:px-4 transition-all duration-500",
               hasUserSearched
                 ? "min-h-[320px] py-16 md:min-h-[420px] md:py-20"
                 : "min-h-[520px] py-24"
@@ -973,9 +973,9 @@ export default function DynamicDestination() {
                   type="submit"
                   size="lg"
                   disabled={isSearching || !customQuery.trim()}
-                  className="h-[64px] rounded-2xl px-10 text-lg font-semibold shadow-xl"
+                  className="h-[64px] rounded-2xl px-8 text-lg font-semibold shadow-2xl bg-white text-primary hover:bg-white/90 focus-visible:ring-white"
                 >
-                  <Search className="mr-2 h-6 w-6" />
+                  <Search className="mr-2 h-6 w-6 text-primary" />
                   Search
                 </Button>
               </form>
@@ -1036,7 +1036,7 @@ export default function DynamicDestination() {
 
       {(searchUnits.length > 0 || isSearching) && (
       <section className="relative z-10 pb-24">
-        <div className="container mx-auto max-w-4xl px-4 pt-6">
+        <div className="container mx-auto max-w-4xl px-0 sm:px-4 pt-6">
           {/* Sidebar Toggle */}
           {!isSidebarOpen && searchUnits.length > 0 && (
             <div className="mb-5">
