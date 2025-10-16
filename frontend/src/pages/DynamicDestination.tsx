@@ -1453,28 +1453,34 @@ export default function DynamicDestination() {
               isScrolledPastHero ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
             )}
           >
+            <div className="mb-2 flex items-center justify-between text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground/80">
+              <span>Plan smarter</span>
+              <span>Ask follow-up questions</span>
+            </div>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleCustomSearch();
               }}
-              className="flex items-center gap-2 rounded-full border border-border/60 bg-background/95 px-4 py-2 shadow-xl backdrop-blur-md"
+              className="flex items-center gap-3 rounded-full border-2 border-primary/40 bg-background/95 px-5 py-3 shadow-2xl backdrop-blur-xl"
             >
-              <Search className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Search className="h-5 w-5" />
+              </div>
               <Input
                 value={customQuery}
                 onChange={(e) => setCustomQuery(e.target.value)}
-                placeholder={`Ask more about ${readableDestination}...`}
+                placeholder={`Ask more about ${readableDestination}…`}
                 disabled={isSearching}
-                className="h-10 flex-1 border-none bg-transparent px-0 text-base focus-visible:border-none focus-visible:ring-0 focus-visible:outline-none"
+                className="h-10 flex-1 border-none bg-transparent px-0 text-base font-medium focus-visible:border-none focus-visible:ring-0 focus-visible:outline-none"
               />
               <Button
                 type="submit"
                 size="icon"
                 disabled={isSearching || !customQuery.trim()}
-                className="h-10 w-10 rounded-full shrink-0"
+                className="h-11 w-11 rounded-full shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
               >
-                <Search className="h-4 w-4" />
+                <span className="text-sm font-semibold">Go</span>
               </Button>
             </form>
           </div>
