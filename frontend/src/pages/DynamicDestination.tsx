@@ -973,9 +973,9 @@ export default function DynamicDestination() {
                   type="submit"
                   size="lg"
                   disabled={isSearching || !customQuery.trim()}
-                  className="h-[64px] rounded-2xl px-8 text-lg font-semibold shadow-2xl bg-white text-primary hover:bg-white/90 focus-visible:ring-white"
+                  className="h-[64px] rounded-2xl px-8 text-lg font-semibold shadow-2xl bg-primary text-white hover:bg-primary/90 focus-visible:ring-primary/70"
                 >
-                  <Search className="mr-2 h-6 w-6 text-primary" />
+                  <Search className="mr-2 h-6 w-6" />
                   Search
                 </Button>
               </form>

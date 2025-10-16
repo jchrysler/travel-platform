@@ -1,5 +1,4 @@
 import { MapPin, Trash2, Star } from "lucide-react";
-import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { formatMarkdownToHtml } from "@/utils/formatMarkdown";
 import { SaveableContent, SavedItem } from "./SaveableContent";
@@ -844,7 +843,7 @@ export function SearchUnit({
       className={`search-unit ${isLatest ? 'animate-slide-down' : ''} px-3 sm:px-0`}
     >
       {/* Main Content Unit */}
-      <Card className="relative overflow-hidden rounded-2xl border border-border bg-card transition-all sm:rounded-2xl sm:border hover:border-primary/30 hover:shadow-lg">
+      <div className="relative overflow-hidden rounded-2xl bg-white shadow-sm transition hover:shadow-md">
         {unit.isStreaming && (
           <div className="absolute inset-x-0 top-0 h-1 bg-primary/20">
             <div className="h-full w-1/2 animate-pulse rounded-r-full bg-primary/60" />
@@ -941,7 +940,7 @@ export function SearchUnit({
             </div>
           )}
         </div>
-      </Card>
+      </div>
 
       {/* Nested Children */}
       {unit.children && unit.children.length > 0 && (

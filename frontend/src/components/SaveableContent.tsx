@@ -150,16 +150,21 @@ export function SaveableContent({
   return (
     <div
       tabIndex={0}
-      className={`saveable-content relative rounded-2xl px-3 sm:px-4 py-3 pr-4 md:pr-12 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
-        isMobile ? 'cursor-pointer' : 'cursor-default'
-      } ${isHighlighted ? 'bg-primary/5 shadow-lg ring-1 ring-primary/40' : 'bg-card shadow-sm hover:shadow-md'}`}
+      className={`saveable-content relative rounded-2xl border border-border/50 bg-white px-4 py-4 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+        isMobile ? "cursor-pointer" : "cursor-default"
+      } ${isHighlighted ? "border-primary/40 shadow-md" : "shadow-sm hover:border-primary/30"}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleTap}
       onFocus={handleFocus}
       onBlur={handleBlur}
     >
-      <div className="relative z-10">
+      {saved && (
+        <span className="absolute left-4 top-4 rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+          Saved
+        </span>
+      )}
+      <div className="relative z-10 space-y-3">
         {children}
       </div>
 
@@ -167,8 +172,8 @@ export function SaveableContent({
         <div
           className={`absolute ${
             isMobile
-              ? 'right-2 top-2 flex items-center gap-2'
-              : 'right-1 top-1/2 -translate-y-1/2 flex flex-col items-end gap-2'
+              ? 'right-4 top-4 flex items-center gap-2'
+              : 'right-4 top-1/2 -translate-y-1/2 flex flex-col items-end gap-2'
           } z-20`}
         >
           <Button
